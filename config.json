@@ -1,0 +1,34 @@
+{
+    "Cameras" : [
+        {
+            "ip" : "555.555.5.5",
+            "channel" : 1,
+            "port" : 5555
+        },
+        {
+            "ip" : "555.555.5.5",
+            "channel" : 2,
+            "port" : 5555
+        }
+    ],
+    "Assignments" : [
+        {
+            "name" : "preset1",
+            "icon" : "icon1.png",
+            "location" : {
+                "p" : 10,
+                "t" : 10,
+                "z" : 10
+            }
+        },
+        {
+            "name" : "preset2",
+            "icon" : "icon2.png",
+            "location" : {
+                "p" : 20,
+                "t" : 20,
+                "z" : 20
+            }
+        }
+    ]
+}
