@@ -1,6 +1,8 @@
 import socket
 import time
 import select
+from urllib import response
+from __time import curMillis
 
 class Camera:
 
@@ -11,7 +13,7 @@ class Camera:
         self._pan = -1
         self._tilt = -1
         self._zoom = -1
-        self._awaiting = []
+        self._awaiting = [] # tuples of (awaited message, handler)
 
     def moveToPoint(self, p, t, z):
         moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF}0{(p >> 4) & 0xF}0{p & 0xF}0{(t >> 12) & 0xF}0{(t >> 8) & 0xF}0{(t >> 4) & 0xF}0{t & 0xF}FF"
@@ -26,10 +28,10 @@ class Camera:
         
     
     def _waitForPacket(self, sock, timeout):
-        ts = int(time.time() * 1000 + timeout)
+        ts = curMillis() + timeout
         buf = b"\x00"
         while buf[-1] != 0xFF:
-            dataReady = select.select([sock], [], [], ts - int(time.time() * 1000))
+            dataReady = select.select([sock], [], [], ts - curMillis())
             if dataReady[0]:
                 data, addr = sock.recvfrom(4096)
                 # TODO validate addr
@@ -39,7 +41,7 @@ class Camera:
         return buf[1:]
     
     def _sendAndAck(self, sock, msg, retries, timeout):
-        ts = int(time.time() * 1000 + timeout)
+        ts = curMillis() + timeout
         ack = False
         while not ack and retries:
             sock.send(msg)
@@ -53,5 +55,17 @@ class Camera:
                 retries -= 1
         return ack
     
-    def _clearAwaiting(self):
-        
+    def _clearAwaiting(self, sock, timeout):
+        ts = curMillis() + timeout
+        while curMillis() < ts and len(self._awaiting):
+            ireceived = -1
+            response = self._waitForPacket(sock, ts - curMillis())
+            for i in range(len(self._awaiting)):
+                if self._awaiting[i][0] == response:
+                    if self._awaiting[i] is not None:
+                        self._awaiting[i](response)
+                    ireceived = i
+                    break
+            if ireceived != -1:
+                del self._awaiting[ireceived]
+        return not len(self._awaiting)
