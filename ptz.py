@@ -1,6 +1,6 @@
 import socket
-import time
 import select
+import re
 # from urllib import response # TODO is this supposed to be here or did it get auto added inadvertently???
 from __time import curMillis
 
@@ -23,7 +23,7 @@ class Camera:
         sock.bind((self._ip, self._port))
         self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000) # TODO do something if returns false
         self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000)
-        self._awaiting += 2 * [(bytes.fromhex(f"905{self._channel}FF"), None)] # completion message
+        self._awaiting += 2 * [(re.compile(r"905(\d|a-f)ff$"), None)] # completion message
         self._clearAwaiting(sock, 3000)
         sock.close()
     
@@ -34,8 +34,8 @@ class Camera:
         sock.bind((self._ip, self._port))
         self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
         self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
-        self._awaiting.append((bytes.fromhex(f"XXXzoomRegexXXX"), self._unstuffZoom))
-        self._awaiting.append((bytes.fromhex(f"XXXpanTiltRegexXXX"), self._unstuffTilt))
+        self._awaiting.append((re.compile(r"9050(0(\d|a-f)){4}ff$"), self._unstuffZoom))
+        self._awaiting.append((re.compile(r"9050(0(\d|a-f)){8}ff$"), self._unstuffPanTilt))
         self._clearAwaiting(sock, 3000)
         sock.close()
 
@@ -43,7 +43,7 @@ class Camera:
         # TODO
         pass
 
-    def _unstuffTilt(self, packet):
+    def _unstuffPanTilt(self, packet):
         # TODO
         pass
     
@@ -56,7 +56,7 @@ class Camera:
                 data, addr = sock.recvfrom(4096)
                 # TODO validate addr
                 buf += data # TODO account for multiple messages strung together (so 0xFF is in the middle)
-            if int(time.time() * 1000) > ts:
+            if curMillis() > ts:
                 return None
         return buf[1:]
     
@@ -67,7 +67,7 @@ class Camera:
         while not ack and retries:
             if nak:
                 sock.send(msg)
-            response = self._waitForPacket(sock, ts - int(time.time() * 1000)) # TODO reset timeout depending on type of NAK response
+            response = self._waitForPacket(sock, ts - curMillis()) # TODO reset timeout depending on type of NAK response
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
@@ -82,7 +82,7 @@ class Camera:
 
     def _checkIfAwaited(self, packet):
         for i in range(len(self._awaiting)):
-            if self._awaiting[i][0] == packet: # TODO need to use regex here instead of == (to allow for inquiry answers which pass unknowns)
+            if self._awaiting[i][0].match(packet.hex()):
                 if self._awaiting[i][1] is not None:
                     self._awaiting[i][1](packet)
                 del self._awaiting[i]
