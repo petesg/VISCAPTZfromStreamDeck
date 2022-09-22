@@ -1,34 +1,54 @@
 {
     "Cameras" : [
         {
+            "name" : "left",
             "ip" : "555.555.5.5",
             "channel" : 1,
-            "port" : 5555
+            "port" : 5555,
+            "Assignments" : [
+                {
+                    "preset" : "preset1",
+                    "pan" : 10,
+                    "tilt" : 11,
+                    "zoom" : 12
+                },
+                {
+                    "preset" : "preset2",
+                    "pan" : 15,
+                    "tilt" : 16,
+                    "zoom" : 17
+                }
+            ]
         },
         {
+            "name" : "right",
             "ip" : "555.555.5.5",
             "channel" : 2,
-            "port" : 5555
+            "port" : 5555,
+            "Assignments" : [
+                {
+                    "preset" : "preset1",
+                    "pan" : 20,
+                    "tilt" : 21,
+                    "zoom" : 22
+                },
+                {
+                    "preset" : "preset2",
+                    "pan" : 25,
+                    "tilt" : 26,
+                    "zoom" : 27
+                }
+            ]
         }
     ],
-    "Assignments" : [
+    "Presets" : [
         {
             "name" : "preset1",
-            "icon" : "icon1.png",
-            "location" : {
-                "p" : [10, 15],
-                "t" : [11, 16],
-                "z" : [12, 17]
-            }
+            "icon" : "icon1.png"
         },
         {
             "name" : "preset2",
-            "icon" : "icon2.png",
-            "location" : {
-                "p" : [20, 25],
-                "t" : [21, 26],
-                "z" : [22, 27]
-            }
+            "icon" : "icon2.png"
         }
     ]
 }

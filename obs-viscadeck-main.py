@@ -35,25 +35,39 @@ def scipt_description():
 def script_update(settings):
     # global cameraScenes
     global configPath
+    global cameras
+    global loadedConfig
 
     configPath = obs.obs_data_get_string(settings, "picker_configPath")
     # reconfigure with new json TODO: do something if path is empty
-    configureMain()
+    # if not configureMain():
+    #     # TODO we should probably do something if this fails right?
+    #     pass
 
     # TODO add/remove scene pickers based on potentially different number of cameras
 
-    for i in range(len(cameras)):
-        cameras[i].sceneName = obs.obs_data_get_string(settings, f"picker_cam{i+1}")
+    # for i in range(len(cameras)):
+    for camera in cameras:
+        camera.sceneName = obs.obs_data_get_string(settings, f"picker_cam_camera.name")
 
 # sets up property setter UI elements
 def script_properties():
+    global cameras
+    global loadedConfig
     props = obs.obs_properties_create()
 
     obs.obs_properties_add_path(props, "picker_configPath", "Config file", obs.OBS_PATH_FILE, "JSON files (*.json)", None)
 
+    if not configureMain():
+        #obs.obs_properties_add_text(props, "errorText", "Config file error!  Please fix and refresh script.", obs.OBS_TEXT_INFO_ERROR)
+        return props
+    print(f"config loaded: {loadedConfig}")
+
     scenes = obs.obs_frontend_get_scenes()
-    for i in range(len(cameras)):
-        p = obs.obs_properties_add_list(props, f"picker_cam{i+1}", f"Camera {i+1}", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    
+    print(f"configuring user properties for {len(cameras)} cameras")
+    for camera in cameras:
+        p = obs.obs_properties_add_list(props, f"picker_cam_{camera.name}", f'Cam: "{camera.name}"', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
         for scene in scenes:
             name = obs.obs_source_get_name(scene)
             obs.obs_property_list_add_string(p, name, name)
@@ -70,21 +84,36 @@ def script_properties():
 # ------
 
 def configureMain():
-    with open(configPath) as configFile:
-        jsonData = configFile.read()
-    loadedConfig = json.loads(jsonData, object_hook=lambda d: SimpleNamespace(**d))
+    global loadedConfig
+    global cameras
+    loadedConfig = None
+    cameras = []
+    print("loading config...")
+    try:
+        with open(configPath) as configFile:
+            jsonData = configFile.read()
+        loadedConfig = json.loads(jsonData, object_hook=lambda d: SimpleNamespace(**d))
+    except FileNotFoundError:
+        return False
+    print("config loaded")
 
     # load cameras
-    cameras = []
-    for camera in loadedConfig.Cameras:
-        newCam = ptz.Camera(camera.ip, camera.port, camera.channel)
-        newCam.sceneName = "" # add property to hold scene name
-        cameras.append(newCam)
+    try:
+        print(f"{len(loadedConfig.Cameras)} cameras & {len(loadedConfig.Presets)} presets detected")
+        for camera in loadedConfig.Cameras:
+            newCam = ptz.Camera(camera.ip, camera.port, camera.channel, camera.name)
+            newCam.sceneName = "" # add property to hold scene name
+            cameras.append(newCam)
+        print(f"{len(cameras)} cameras loaded")
+    except AttributeError:
+        return False
     
     # 
 
     # setup streamdeck
     buttons.configureDeck(configPath)
+
+    return True
 
 def getLiveCamera():
     current_scene = obs.obs_frontend_get_current_scene()
