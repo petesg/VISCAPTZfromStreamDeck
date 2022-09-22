@@ -23,9 +23,17 @@ class Camera:
         sock.bind((self._ip, self._port))
         self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000) # TODO do something if returns false
         self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000)
-        self._awaiting += 2 * [(re.compile(r"905(\d|a-f)ff$"), None)] # completion message
+        self._awaiting += 2 * [(re.compile(r"905[\da-f]ff$"), None)] # completion message
         self._clearAwaiting(sock, 3000)
         sock.close()
+
+    def getPosition(self):
+        self._updatePosition()
+        return (self._pan, self._tilt, self._zoom)
+    
+    def autofocus(self):
+        # TODO
+        pass
     
     def _updatePosition(self):
         zoomInqMsg = f"" # TODO
@@ -34,18 +42,17 @@ class Camera:
         sock.bind((self._ip, self._port))
         self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
         self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
-        self._awaiting.append((re.compile(r"9050(0(\d|a-f)){4}ff$"), self._unstuffZoom))
-        self._awaiting.append((re.compile(r"9050(0(\d|a-f)){8}ff$"), self._unstuffPanTilt))
+        self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffZoom))
+        self._awaiting.append((re.compile(r"9050(0[\da-f]){8}ff$"), self._unstuffPanTilt))
         self._clearAwaiting(sock, 3000)
         sock.close()
 
     def _unstuffZoom(self, packet):
-        # TODO
-        pass
+        self._zoom = packet[2] << 12 | packet[3] << 8 | packet[4] << 4 | packet[5]
 
     def _unstuffPanTilt(self, packet):
-        # TODO
-        pass
+        self._pan = packet[2] << 12 | packet[3] << 8 | packet[4] << 4 | packet[5]
+        self._tilt = packet[6] << 12 | packet[7] << 8 | packet[8] << 4 | packet[9]
     
     def _waitForPacket(self, sock, timeout):
         ts = curMillis() + timeout
@@ -98,3 +105,6 @@ class Camera:
             response = self._waitForPacket(sock, ts - curMillis())
             self._checkIfAwaited(response)
         return not len(self._awaiting)
+
+if __name__ == "__main__":
+    print("Hello World")
