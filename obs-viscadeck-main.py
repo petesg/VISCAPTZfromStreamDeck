@@ -1,4 +1,3 @@
-import configparser
 import obspython as obs
 import ptz
 import buttons
@@ -19,8 +18,9 @@ def scipt_description():
     return "Synchronizes OBS scene transitions with camera movements from on Stream Deck input (bypasses Elgato software)."
 
 # script setup (as OBS itself is booting up)
-# def script_load(settings):
-#     pass
+def script_load(settings):
+    print("init")
+    pass
 
 # def script_unload():
 #     pass
@@ -61,7 +61,7 @@ def script_properties():
     if not configureMain():
         #obs.obs_properties_add_text(props, "errorText", "Config file error!  Please fix and refresh script.", obs.OBS_TEXT_INFO_ERROR)
         return props
-    print(f"config loaded: {loadedConfig}")
+    # print(f"config loaded: {loadedConfig}")
 
     scenes = obs.obs_frontend_get_scenes()
     
@@ -111,7 +111,7 @@ def configureMain():
     # 
 
     # setup streamdeck
-    buttons.configureDeck(configPath)
+    buttons.configureDeck(loadedConfig)
 
     return True
 
@@ -126,9 +126,19 @@ def getLiveCamera():
 # callbacks
 # ---------
 
-def callPreset_callback(presetIndex):
-    # TODO
-    pass
+def callPreset_callback(preset):
+    # TODO make sure preset exists
+    liveCam = getLiveCamera()
+    for i in range(len(cameras)):
+        if cameras[i] != liveCam:
+            try:
+                pos = getattr(loadedConfig.Cameras[i], preset)
+            except AttributeError:
+                return False
+            cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
+            return True
+    return False
+
     # scenes = obs.obs_frontend_get_scenes()
     # for scene in scenes:
     #     name = obs.obs_source_get_name(scene)
@@ -136,7 +146,7 @@ def callPreset_callback(presetIndex):
     #         obs.obs_frontend_set_current_scene(scene)
 
 def testNearButton_callback(props, prop):
-    callPreset_callback(0)
+    callPreset_callback("preset1")
 
 def testFarButton_callback(props, prop):
-    callPreset_callback(1)
+    callPreset_callback("preset2")

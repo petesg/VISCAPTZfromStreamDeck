@@ -6,6 +6,6 @@ from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 
-def configureDeck(configPath):
+def configureDeck(loadedConfig):
     # TODO
     pass
