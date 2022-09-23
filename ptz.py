@@ -18,15 +18,22 @@ class Camera:
         self._sparePackets = [] # received packets that weren't being awaited at the time
 
     def moveToPoint(self, p, t, z):
+        # TODO TEMP test code without cameras attached:
+        print(f"moving to ({p}, {t}, {z})")
+        return False
         moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF}0{(p >> 4) & 0xF}0{p & 0xF}0{(t >> 12) & 0xF}0{(t >> 8) & 0xF}0{(t >> 4) & 0xF}0{t & 0xF}FF"
         zoomMsg = f"8{self._channel:01X}0104570{(z >> 12) & 0xF}0{(z >> 8) & 0xF}0{(z >> 4) & 0xF}0{z & 0xF}FF"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((self._ip, self._port))
-        self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000) # TODO do something if returns false
-        self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000)
+        if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
+            return False # TODO do I need to do something else if returns false?
+        if not self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000):
+            return False
         self._awaiting += 2 * [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        self._clearAwaiting(sock, 3000)
+        if not self._clearAwaiting(sock, 3000):
+            return False
         sock.close()
+        return True
 
     def getPosition(self):
         self._updatePosition()
@@ -49,11 +56,11 @@ class Camera:
         sock.close()
 
     def _unstuffZoom(self, packet):
-        self._zoom = packet[2] << 12 | packet[3] << 8 | packet[4] << 4 | packet[5]
+        self._zoom = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0xF & packet[5])
 
     def _unstuffPanTilt(self, packet):
-        self._pan = packet[2] << 12 | packet[3] << 8 | packet[4] << 4 | packet[5]
-        self._tilt = packet[6] << 12 | packet[7] << 8 | packet[8] << 4 | packet[9]
+        self._pan = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0x0F & packet[5])
+        self._tilt = (0x0F & packet[6]) << 12 | (0x0F & packet[7]) << 8 | (0x0F & packet[8]) << 4 | (0x0F & packet[9])
     
     def _waitForPacket(self, sock, timeout):
         ts = curMillis() + timeout

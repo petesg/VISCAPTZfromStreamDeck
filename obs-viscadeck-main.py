@@ -7,7 +7,7 @@ from types import SimpleNamespace
 # cameraScenes = ["", ""]
 cameras = []
 loadedConfig = None
-
+loadSuccess = False
 configPath = ""
 
 # intrinsics
@@ -20,6 +20,8 @@ def scipt_description():
 # script setup (as OBS itself is booting up)
 def script_load(settings):
     print("init")
+    global loadSuccess
+    loadSuccess = configureMain()
     pass
 
 # def script_unload():
@@ -58,7 +60,7 @@ def script_properties():
 
     obs.obs_properties_add_path(props, "picker_configPath", "Config file", obs.OBS_PATH_FILE, "JSON files (*.json)", None)
 
-    if not configureMain():
+    if not loadSuccess: # configureMain():
         #obs.obs_properties_add_text(props, "errorText", "Config file error!  Please fix and refresh script.", obs.OBS_TEXT_INFO_ERROR)
         return props
     # print(f"config loaded: {loadedConfig}")
@@ -93,7 +95,8 @@ def configureMain():
         with open(configPath) as configFile:
             jsonData = configFile.read()
         loadedConfig = json.loads(jsonData, object_hook=lambda d: SimpleNamespace(**d))
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        print(e)
         return False
     print("config loaded")
 
@@ -123,6 +126,13 @@ def getLiveCamera():
             return camera
     return None # TODO maybe throw an exception???
 
+def transitionScene(cam):
+    scenes = obs.obs_frontend_get_scenes()
+    for scene in scenes:
+        name = obs.obs_source_get_name(scene)
+        if name == cam.sceneName:
+            obs.obs_frontend_set_current_scene(scene)
+
 # callbacks
 # ---------
 
@@ -136,17 +146,14 @@ def callPreset_callback(preset):
             except AttributeError:
                 return False
             cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
+            transitionScene(cameras[i])
             return True
     return False
 
-    # scenes = obs.obs_frontend_get_scenes()
-    # for scene in scenes:
-    #     name = obs.obs_source_get_name(scene)
-    #     if name == cameraScenes[camIndex]:
-    #         obs.obs_frontend_set_current_scene(scene)
-
 def testNearButton_callback(props, prop):
+    print("dbg hit near")
     callPreset_callback("preset1")
 
 def testFarButton_callback(props, prop):
+    print("dbg hit far")
     callPreset_callback("preset2")
