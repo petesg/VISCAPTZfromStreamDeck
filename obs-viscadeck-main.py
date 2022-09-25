@@ -21,6 +21,12 @@ def scipt_description():
 def script_load(settings):
     print("init")
     global loadSuccess
+    # global configPath
+    # try:
+    #     configPath = settings.configPath
+    #     print(f"preloaded configpath {configPath}")
+    # except AttributeError:
+    #     print(f"no configpath to preload")
     loadSuccess = configureMain()
     pass
 
@@ -28,7 +34,9 @@ def script_load(settings):
 #     pass
 
 # def script_save(settings):
-#     pass
+#     global configPath
+#     settings.configPath = configPath
+#     print("saved")
 
 # def script_defaults(settings):
 #     pass
