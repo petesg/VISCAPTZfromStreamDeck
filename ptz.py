@@ -20,11 +20,11 @@ class Camera:
     def moveToPoint(self, p, t, z):
         # TODO TEMP test code without cameras attached:
         print(f"moving to ({p}, {t}, {z})")
-        return False
+        #return False
         moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF}0{(p >> 4) & 0xF}0{p & 0xF}0{(t >> 12) & 0xF}0{(t >> 8) & 0xF}0{(t >> 4) & 0xF}0{t & 0xF}FF"
         zoomMsg = f"8{self._channel:01X}0104570{(z >> 12) & 0xF}0{(z >> 8) & 0xF}0{(z >> 4) & 0xF}0{z & 0xF}FF"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((self._ip, self._port))
+        sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
             return False # TODO do I need to do something else if returns false?
         if not self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000):
@@ -44,15 +44,21 @@ class Camera:
         pass
     
     def _updatePosition(self):
+        print('inquiring pos')
         zoomInqMsg = f"" # TODO
         posInqMsg = f"" # TODO
+        print('setting up socket')
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((self._ip, self._port))
+        sock.connect((self._ip, self._port))
+        print('sending zomm inq.')
         self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
+        print('sending pan/tilt inq')
         self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
+        print('awaiting responses...')
         self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffZoom))
         self._awaiting.append((re.compile(r"9050(0[\da-f]){8}ff$"), self._unstuffPanTilt))
         self._clearAwaiting(sock, 3000)
+        print('responses received')
         sock.close()
 
     def _unstuffZoom(self, packet):
@@ -66,7 +72,7 @@ class Camera:
         ts = curMillis() + timeout
         buf = b"\x00"
         while buf[-1] != 0xFF:
-            dataReady = select.select([sock], [], [], ts - curMillis())
+            dataReady = select.select([sock], [], [], (ts - curMillis()) / 1000)
             if dataReady[0]:
                 data, addr = sock.recvfrom(4096)
                 # TODO validate addr
