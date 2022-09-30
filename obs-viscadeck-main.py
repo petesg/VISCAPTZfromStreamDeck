@@ -7,7 +7,7 @@ from types import SimpleNamespace
 # cameraScenes = ["", ""]
 cameras = []
 loadedConfig = None
-# loadSuccess = False
+loadSuccess = False
 configPath = ""
 
 # intrinsics
@@ -19,7 +19,14 @@ def script_description():
 
 # script setup (as OBS itself is booting up)
 def script_load(settings):
+    global configPath
+    global loadSuccess
     print("(load)")
+
+    configPath = obs.obs_data_get_string(settings, "picker_configPath")
+    loadSuccess = configureMain()
+    print(f"config loaded: {loadedConfig}")
+    # configureMain()
     # print(f'"settings" = {{{settings}}}')
     # global loadSuccess
     # global configPath
@@ -54,13 +61,15 @@ def script_update(settings):
     print("(update)")
 
     configPath = obs.obs_data_get_string(settings, "picker_configPath")
-    # reconfigure with new json TODO: do something if path is empty
+    # TODO: do something if path is empty
+    # reconfigure with new json (TODO should I be doing something here)
     # if not loadSuccess: # this 
     #     if not configureMain():
     #         # TODO we should probably do something if this fails right?
     #         pass
 
     # TODO add/remove scene pickers based on potentially different number of cameras
+    # ^ (I don't think this is possible actually?  gotta rely on user reloading script when changed)
 
     # for i in range(len(cameras)):
     for camera in cameras:
@@ -70,6 +79,7 @@ def script_update(settings):
 def script_properties():
     global cameras
     global loadedConfig
+    global loadSuccess
 
     print("(props)")
 
@@ -78,10 +88,9 @@ def script_properties():
     p = obs.obs_properties_add_path(props, "picker_configPath", "Config File", obs.OBS_PATH_FILE, "JSON files (*.json)", None)
     obs.obs_property_set_modified_callback(p, configFileChanged_callback)
 
-    if not configureMain():
+    if not loadSuccess: # configureMain():
         #obs.obs_properties_add_text(props, "errorText", "Config file error!  Please fix and refresh script.", obs.OBS_TEXT_INFO_ERROR)
         return props
-    print(f"config loaded: {loadedConfig}")
 
     scenes = obs.obs_frontend_get_scenes()
     print(f"configuring user properties for {len(cameras)} cameras")
@@ -133,18 +142,18 @@ def configureMain():
     # 
 
     # setup streamdeck
-    buttons.configureDeck(loadedConfig)
+    buttons.configureDeck(loadedConfig, callPreset_callback)
 
     return True
 
 def getLiveCamera():
-    print('getting live cam')
+    # print('getting live cam')
     current_scene = obs.obs_frontend_get_current_scene()
     currentScene = obs.obs_source_get_name(current_scene)
-    print(f'"{currentScene}" is live')
+    # print(f'"{currentScene}" is live')
     # currentScene = obs.obs_scene_from_source(current_scene)
     for camera in cameras:
-        print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
+        # print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
         if camera.sceneName == currentScene:
             return camera
     return None # TODO maybe throw an exception???
@@ -185,12 +194,15 @@ def callPreset_callback(preset):
     # TODO make sure preset exists
     print(f'calling preset "{preset}"')
     liveCam = getLiveCamera()
-    print(f'"{liveCam}" is live')
+    print(f'"{liveCam.name}" is live')
     for i in range(len(cameras)):
+        print(f'camera {i} {("is not", "is")[cameras[i] == liveCam]} live cam')
         if cameras[i] != liveCam:
             try:
-                pos = getattr(loadedConfig.Cameras[i], preset)
+                print(f'getting "{preset}" from {loadedConfig.Cameras[i].Assignments}')
+                pos = getattr(loadedConfig.Cameras[i].Assignments, preset)
             except AttributeError:
+                print(f'attribute does not exist')
                 return False
             cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
             transitionScene(cameras[i])

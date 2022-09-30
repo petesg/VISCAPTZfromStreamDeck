@@ -20,7 +20,7 @@ class Camera:
     def moveToPoint(self, p, t, z):
         # TODO TEMP test code without cameras attached:
         print(f"moving to ({p}, {t}, {z})")
-        #return False
+        # return False
         moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF}0{(p >> 4) & 0xF}0{p & 0xF}0{(t >> 12) & 0xF}0{(t >> 8) & 0xF}0{(t >> 4) & 0xF}0{t & 0xF}FF"
         zoomMsg = f"8{self._channel:01X}0104570{(z >> 12) & 0xF}0{(z >> 8) & 0xF}0{(z >> 4) & 0xF}0{z & 0xF}FF"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
