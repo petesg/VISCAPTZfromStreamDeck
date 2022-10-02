@@ -89,7 +89,7 @@ class Camera:
         ts = curMillis() + timeout
         ack = False
         nak = False
-        while not ack and retries:
+        while not ack and retries and ts > curMillis():
             if nak:
                 sock.send(msg)
             response = self._waitForPacket(sock, ts - curMillis()) # TODO reset timeout depending on type of NAK response
