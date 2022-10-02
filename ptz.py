@@ -45,19 +45,23 @@ class Camera:
     
     def _updatePosition(self):
         print('inquiring pos')
-        zoomInqMsg = f"" # TODO
-        posInqMsg = f"" # TODO
+        zoomInqMsg = f"8{self._channel}090447FF" # TODO
+        posInqMsg = f"8{self._channel}090612FF" # TODO
         print('setting up socket')
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         print('sending zomm inq.')
-        self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
+        # (apparently inquiry messages aren't ACK'ed)
+        # TODO change sendAndAck to optionally not require ACK but still make sure no NAK is received
+        # self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
+        sock.send(bytes.fromhex(zoomInqMsg)) # TODO temp, see above
         print('sending pan/tilt inq')
-        self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
+        # self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
+        sock.send(bytes.fromhex(posInqMsg)) # TODO temp, see above
         print('awaiting responses...')
         self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffZoom))
         self._awaiting.append((re.compile(r"9050(0[\da-f]){8}ff$"), self._unstuffPanTilt))
-        self._clearAwaiting(sock, 3000)
+        self._clearAwaiting(sock, 5000)
         print('responses received')
         sock.close()
 
@@ -121,4 +125,5 @@ class Camera:
         return not len(self._awaiting)
 
 if __name__ == "__main__":
-    print("Hello World")
+    cam1 = Camera('192.168.10.11', 1259, 1, "CAMERA 1")
+    cam2 = Camera('192.168.10.12', 1259, 1, "CAMERA 1")

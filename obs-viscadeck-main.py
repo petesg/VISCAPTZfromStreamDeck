@@ -1,3 +1,4 @@
+# add "<obs-studio install dir>\\data\\obs-scripting\\64bit" to "python.analysis.extraPaths": [] in settings.json
 import obspython as obs
 import ptz
 import buttons
