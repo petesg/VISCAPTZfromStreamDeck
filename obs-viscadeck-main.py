@@ -10,6 +10,7 @@ cameras = []
 loadedConfig = None
 loadSuccess = False
 configPath = ""
+deck = None
 
 # intrinsics
 # ----------
@@ -143,7 +144,7 @@ def configureMain():
     # 
 
     # setup streamdeck
-    buttons.configureDeck(loadedConfig, callPreset_callback)
+    deck = buttons.SDeck(loadedConfig, callPreset_callback)
 
     return True
 
