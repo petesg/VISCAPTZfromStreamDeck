@@ -88,15 +88,22 @@ class Camera:
     def _sendAndAck(self, sock, msg, retries, timeout):
         ts = curMillis() + timeout
         ack = False
-        nak = False
+        nak = True
+        print('sending...')
+        i = 0
         while not ack and retries and ts > curMillis():
+            i += 1
+            print(f'attempt {i}, awaiting response...')
             if nak:
                 sock.send(msg)
+                nak = False
             response = self._waitForPacket(sock, ts - curMillis()) # TODO reset timeout depending on type of NAK response
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
-            if response == bytes.fromhex(f"904{self._channel}FF"): # ACK packet
+            print(f'received "{response}"')
+            # TODO should I use a regex here instead of equality?
+            if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
                 ack = True
             # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
             #     retries -= 1
