@@ -103,13 +103,16 @@ class Camera:
             # OR make a list of awaited messages to check against
             print(f'received "{response}"')
             # TODO should I use a regex here instead of equality?
-            if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
+            # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
+            if re.compile(r"904[\da-f]ff$").match(response):
                 ack = True
+                print('response is ack')
             # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
             #     retries -= 1
             #     nak = True
             else:
                 self._sparePackets += [response]
+                print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
         return ack
 
     def _checkIfAwaited(self, packet):
