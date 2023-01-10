@@ -21,8 +21,8 @@ class Camera:
         # TODO TEMP test code without cameras attached:
         print(f"moving to ({p}, {t}, {z})")
         # return False
-        moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF}0{(p >> 4) & 0xF}0{p & 0xF}0{(t >> 12) & 0xF}0{(t >> 8) & 0xF}0{(t >> 4) & 0xF}0{t & 0xF}FF"
-        zoomMsg = f"8{self._channel:01X}0104570{(z >> 12) & 0xF}0{(z >> 8) & 0xF}0{(z >> 4) & 0xF}0{z & 0xF}FF"
+        moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF:01X}0{(p >> 4) & 0xF:01X}0{p & 0xF}0{(t >> 12) & 0xF:01X}0{(t >> 8) & 0xF:01X}0{(t >> 4) & 0xF:01X}0{t & 0xF:01X}FF"
+        zoomMsg = f"8{self._channel:01X}0104470{(z >> 12) & 0xF:01X}0{(z >> 8) & 0xF:01X}0{(z >> 4) & 0xF:01X}0{z & 0xF:01X}FF"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
@@ -40,8 +40,11 @@ class Camera:
         return (self._pan, self._tilt, self._zoom)
     
     def autofocus(self):
-        # TODO
-        pass
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(f"8{self._channel:01X}01043802FF"), 3, 2000):
+            return False
+        return True
     
     def _updatePosition(self):
         print('inquiring pos')
@@ -104,7 +107,7 @@ class Camera:
             print(f'received "{response}"')
             # TODO should I use a regex here instead of equality?
             # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
-            if re.compile(r"904[\da-f]ff$").match(response):
+            if re.compile(r"904[\da-f]ff$").match(response.hex()):
                 ack = True
                 print('response is ack')
             # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
@@ -136,4 +139,4 @@ class Camera:
 
 if __name__ == "__main__":
     cam1 = Camera('192.168.10.11', 1259, 1, "CAMERA 1")
-    cam2 = Camera('192.168.10.12', 1259, 1, "CAMERA 1")
+    cam2 = Camera('192.168.10.12', 1259, 1, "CAMERA 2")
