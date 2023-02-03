@@ -4,6 +4,7 @@ import ptz
 import buttons
 import json
 import importlib
+import time
 from types import SimpleNamespace
 
 # cameraScenes = ["", ""]
@@ -11,6 +12,7 @@ cameras = []
 loadedConfig = None
 loadSuccess = False
 configPath = ""
+delayDur = 0
 deck = None
 
 # intrinsics
@@ -92,6 +94,7 @@ def script_properties():
     props = obs.obs_properties_create()
 
     p = obs.obs_properties_add_path(props, "picker_configPath", "Config File", obs.OBS_PATH_FILE, "JSON files (*.json)", None)
+    obs.obs_property_set_long_description(p, "JSON system config file")
     obs.obs_property_set_modified_callback(p, configFileChanged_callback)
 
     if not loadSuccess: # configureMain():
@@ -101,12 +104,15 @@ def script_properties():
     scenes = obs.obs_frontend_get_scenes()
     print(f"configuring user properties for {len(cameras)} cameras")
     for camera in cameras:
-        p = obs.obs_properties_add_list(props, f"picker_cam_{camera.name}", f'"{camera.name}" Camera', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+        p = obs.obs_properties_add_list(props, f"picker_cam_{camera.name}", f'"{camera.name}" Scene', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+        obs.obs_property_set_long_description(p, f'Scene corresponding to  "{camera.name}" camera')
         for scene in scenes:
             name = obs.obs_source_get_name(scene)
             obs.obs_property_list_add_string(p, name, name)
     
-    obs.obs_properties_add_int(props, "picker_delay", "Delay Compensation", 0, 10000, 10)
+    p = obs.obs_properties_add_int(props, "picker_delay", "Lag Comp. (ms)", 0, 10000, 10)
+    obs.obs_property_set_modified_callback(p, delayDurChanged_callback)
+    obs.obs_property_set_long_description(p, 'Compoensation delay for network lag in video feed')
 
     obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
     obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
@@ -198,6 +204,11 @@ def configFileChanged_callback(props, prop, *args, **kwargs):
     #         obs.obs_property_list_add_string(p, name, name)
     # return props
 
+def delayDurChanged_callback(props, prop, settings):
+    global delayDur
+    delayDur = obs.obs_data_get_int(settings, "picker_delay")
+    print(f'delaydur is {delayDur}')
+
 def callPreset_callback(preset):
     # TODO make sure preset exists
     print(f'calling preset "{preset}"')
@@ -214,6 +225,7 @@ def callPreset_callback(preset):
                 return False
             result = cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
             print(f'camera move {"success" if result else "failed"}')
+            time.sleep(delayDur / 1000)
             transitionScene(cameras[i])
             return True
     return False
