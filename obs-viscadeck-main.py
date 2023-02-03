@@ -3,6 +3,7 @@ import obspython as obs
 import ptz
 import buttons
 import json
+import importlib
 from types import SimpleNamespace
 
 # cameraScenes = ["", ""]
@@ -51,6 +52,9 @@ def script_save(settings):
 
 def script_defaults(settings):
     print("(defaults)")
+    importlib.reload(ptz)
+    importlib.reload(buttons)
+    print("local modules reloaded")
 
 # runs any time properties are changed by the user
 def script_update(settings):
@@ -102,6 +106,8 @@ def script_properties():
             name = obs.obs_source_get_name(scene)
             obs.obs_property_list_add_string(p, name, name)
     
+    obs.obs_properties_add_int(props, "picker_delay", "Delay Compensation", 0, 10000, 10)
+
     obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
     obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
 
@@ -206,7 +212,8 @@ def callPreset_callback(preset):
             except AttributeError:
                 print(f'attribute does not exist')
                 return False
-            cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
+            result = cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
+            print(f'camera move {"success" if result else "failed"}')
             transitionScene(cameras[i])
             return True
     return False

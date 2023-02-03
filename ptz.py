@@ -19,10 +19,12 @@ class Camera:
 
     def moveToPoint(self, p, t, z):
         # TODO TEMP test code without cameras attached:
-        print(f"moving to ({p}, {t}, {z})")
+        print(f"moving to (0x{p:X}, 0x{t:X}, 0x{z:X})")
         # return False
-        moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF}0{(p >> 8) & 0xF:01X}0{(p >> 4) & 0xF:01X}0{p & 0xF}0{(t >> 12) & 0xF:01X}0{(t >> 8) & 0xF:01X}0{(t >> 4) & 0xF:01X}0{t & 0xF:01X}FF"
+        moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF:01X}0{(p >> 8) & 0xF:01X}0{(p >> 4) & 0xF:01X}0{p & 0xF:01X}0{(t >> 12) & 0xF:01X}0{(t >> 8) & 0xF:01X}0{(t >> 4) & 0xF:01X}0{t & 0xF:01X}FF"
         zoomMsg = f"8{self._channel:01X}0104470{(z >> 12) & 0xF:01X}0{(z >> 8) & 0xF:01X}0{(z >> 4) & 0xF:01X}0{z & 0xF:01X}FF"
+        print(f'move packet: "{moveMsg}"')
+        print(f'zoom packet: "{zoomMsg}"')
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
@@ -30,9 +32,11 @@ class Camera:
         if not self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000):
             return False
         self._awaiting += 2 * [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        if not self._clearAwaiting(sock, 3000):
+        print(f'awaiting {len(self._awaiting)} packets...')
+        if not self._clearAwaiting(sock, 10000):
             return False
         sock.close()
+        print(f'finishing with {len(self._awaiting)} awaited packets remaining')
         return True
 
     def getPosition(self):
@@ -92,7 +96,7 @@ class Camera:
         ts = curMillis() + timeout
         ack = False
         nak = True
-        print('sending...')
+        print(f'sending "{msg.hex()}"...')
         i = 0
         while not ack and retries and ts > curMillis():
             i += 1
@@ -104,7 +108,7 @@ class Camera:
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
-            print(f'received "{response}"')
+            print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
             # TODO should I use a regex here instead of equality?
             # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
             if re.compile(r"904[\da-f]ff$").match(response.hex()):

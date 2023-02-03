@@ -2,37 +2,37 @@
     "Cameras" : [
         {
             "name" : "left",
-            "ip" : "555.555.5.5",
+            "ip" : "192.168.10.12",
             "channel" : 1,
-            "port" : 5555,
+            "port" : 1259,
             "Assignments" : {
                 "preset1" : {
-                    "pan" : 10,
-                    "tilt" : 11,
-                    "zoom" : 12
+                    "pan" : 32000,
+                    "tilt" : 32000,
+                    "zoom" : 32000
                 },
                 "preset2" : {
-                    "pan" : 15,
-                    "tilt" : 16,
-                    "zoom" : 17
+                    "pan" : 1500,
+                    "tilt" : 1600,
+                    "zoom" : 1700
                 }
             }
         },
         {
             "name" : "right",
-            "ip" : "555.555.5.5",
-            "channel" : 2,
-            "port" : 5555,
+            "ip" : "192.168.10.11",
+            "channel" : 1,
+            "port" : 1259,
             "Assignments" : {
                 "preset1" : {
-                    "pan" : 20,
-                    "tilt" : 21,
-                    "zoom" : 22
+                    "pan" : 32000,
+                    "tilt" : 32000,
+                    "zoom" : 32000
                 },
                 "preset2" : {
-                    "pan" : 25,
-                    "tilt" : 26,
-                    "zoom" : 27
+                    "pan" : 2500,
+                    "tilt" : 2600,
+                    "zoom" : 2700
                 }
             }
         }
