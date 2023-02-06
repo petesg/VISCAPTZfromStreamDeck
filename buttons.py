@@ -9,7 +9,7 @@ from StreamDeck.ImageHelpers import PILHelper
 import json
 from types import SimpleNamespace
 
-class SDeck:
+class ViscaDeck:
     
     def __init__(self, loadedConfig, presetCallback):
         global config
@@ -17,10 +17,14 @@ class SDeck:
         self._callPreset = presetCallback
         self._deck = None
 
-    def connectStreamDeck(self):
+        self._connectSurface()
+
+    def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
 
         print(f"Found {len(streamdecks)} Stream Deck(s).\n")
+        if len(streamdecks) > 1:
+            print('Warning: multiple streamdecks not [yet?] supported')
 
         for index, deck in enumerate(streamdecks):
             # This example only works with devices that have screens.
@@ -35,16 +39,26 @@ class SDeck:
             # Set initial screen brightness to 30%.
             deck.set_brightness(30)
 
+            # Register callback function for when a key state changes.
+            deck.set_key_callback(self._keyPressed_callback)
+
+            self._deck = deck
+
             # Set initial key images.
             for key in range(deck.key_count()):
-                update_key_image(deck, key, False)
-
-            # Register callback function for when a key state changes.
-            deck.set_key_callback(key_change_callback)
+                # TODO set key icons for home page
+                pass
+            
+            break # TODO support picking from multiple decks
     
-    def disconnectStreamDeck(self):
-
+    def _disconnectSurface(self):
         self._deck = None
+
+    def _setIcon(key):
+        pass
+    
+    def _keyPressed_callback(deck, key, state):
+        pass
 
 
 # EXAMPLE CODE
@@ -171,8 +185,8 @@ if __name__ == "__main__":
             jsonData = configFile.read()
         loadedConfig = json.loads(jsonData, object_hook=lambda d: SimpleNamespace(**d))
 
-        d = SDeck(loadedConfig, None)
-        d.connectStreamDeck()
+        # d = ViscaDeck(loadedConfig, None)
+        # d.connectStreamDeck()
 
         # Wait until all application threads have terminated (for this example,
         # this is when all deck handles are closed).
@@ -182,4 +196,4 @@ if __name__ == "__main__":
             except RuntimeError:
                 pass
 
-        d.disconnectStreamDeck()
+        deck.disconnectStreamDeck()

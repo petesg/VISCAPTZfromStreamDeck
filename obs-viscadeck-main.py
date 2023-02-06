@@ -156,7 +156,7 @@ def configureMain():
     # 
 
     # setup streamdeck
-    deck = buttons.SDeck(loadedConfig, callPreset_callback)
+    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback)
 
     return True
 
