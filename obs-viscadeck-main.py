@@ -144,7 +144,7 @@ def configureMain():
 
     # load cameras
     try:
-        print(f"{len(loadedConfig.Cameras)} cameras & {len(loadedConfig.Presets)} presets detected")
+        print(f"{len(loadedConfig.Cameras)} cameras & {len(loadedConfig.Presets.__dict__)} presets detected")
         for camera in loadedConfig.Cameras:
             newCam = ptz.Camera(camera.ip, camera.port, camera.channel, camera.name)
             newCam.sceneName = "" # add property to hold scene name
@@ -152,8 +152,6 @@ def configureMain():
         print(f"{len(cameras)} cameras loaded")
     except AttributeError:
         return False
-    
-    # 
 
     # setup streamdeck
     deck = buttons.ViscaDeck(loadedConfig, callPreset_callback)
@@ -209,7 +207,7 @@ def delayDurChanged_callback(props, prop, settings):
     delayDur = obs.obs_data_get_int(settings, "picker_delay")
     print(f'delaydur is {delayDur}')
 
-def callPreset_callback(preset):
+def callPreset_callback(preset: str) -> None:
     # TODO make sure preset exists
     print(f'calling preset "{preset}"')
     liveCam = getLiveCamera()

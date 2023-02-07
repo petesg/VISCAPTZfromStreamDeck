@@ -2,20 +2,26 @@ import os
 import threading
 
 from PIL import Image, ImageDraw, ImageFont
+from typing import List, Callable, Any
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
+from StreamDeck.Devices.StreamDeck import StreamDeck
 
 # DEBUG imports
 import json
 from types import SimpleNamespace
 
 class ViscaDeck:
+
+    _deck: StreamDeck
+    _loadedConfig: SimpleNamespace
+    _callPreset: Callable[[str], None]
+    _keyHandlers: list[tuple[Callable[[bool, Any], None], Any]]
+    _selectedCams: list[str]
     
     def __init__(self, loadedConfig, presetCallback):
-        global config
-        config = loadedConfig
+        self._config = loadedConfig
         self._callPreset = presetCallback
-        self._deck = None
 
         self._connectSurface()
 
@@ -27,39 +33,108 @@ class ViscaDeck:
             print('Warning: multiple streamdecks not [yet?] supported')
 
         for index, deck in enumerate(streamdecks):
-            # This example only works with devices that have screens.
+            # Skip decks with no screen
             if not deck.is_visual():
                 continue
 
-            deck.open()
-            deck.reset()
-
-            print(f"Opened '{deck.deck_type()}' device (serial number: '{deck.get_serial_number()}', fw: '{deck.get_firmware_version()}')")
-
-            # Set initial screen brightness to 30%.
-            deck.set_brightness(30)
-
-            # Register callback function for when a key state changes.
-            deck.set_key_callback(self._keyPressed_callback)
-
             self._deck = deck
-
-            # Set initial key images.
-            for key in range(deck.key_count()):
-                # TODO set key icons for home page
-                pass
-            
             break # TODO support picking from multiple decks
+
+        self._deck.open()
+        self._deck.reset()
+
+        print(f"Opened '{self._deck.deck_type()}' device (serial number: '{self._deck.get_serial_number()}', fw: '{self._deck.get_firmware_version()}')")
+
+        # Set initial screen brightness to 30%.
+        self._deck.set_brightness(30)
+
+        # Register callback function for when a key state changes.
+        self._deck.set_key_callback(self._globalKeyPressed_callback)
+
+        # Set initial key images.
+        self._drawDeck()
+        # for key in range(self._deck.key_count()):
+        #     # TODO set key icons for home page
+        #     pass
     
     def _disconnectSurface(self):
+        # TODO close some threads or something?
+        self._deck.close()
         self._deck = None
-
-    def _setIcon(key):
-        pass
     
-    def _keyPressed_callback(deck, key, state):
+    def _drawDeck(self, page):
+        # clear keys
+        for i in range(len(self._deck.key_count())):
+            self._keyHandlers[i] = (None, None)
+            self._renderIcon(None, None, None, i)
+        if page == "HOME":
+            # populate preset buttons
+            i = 0
+            for p in list(loadedConfig.Presets.__dict__):
+                if (i + 1) % self._deck.KEY_COLS == 0:
+                    i += 1
+                self._renderIcon(p.icon, p.label, None, i)
+                self._keyHandlers[i] = (self._presetKeyPressed_callback, p)
+                i += 1
+            # camera button
+            i = self._deck.KEY_COLS - 1
+            self._renderIcon("cameraIcon.png", ', '.join(self._selectedCams), None, i)
+            self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
+            # edit button
+            i = self._deck.KEY_COLS * 2 - 1
+            self._renderIcon("editIcon.png", "", None, i)
+            self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
+        else:
+            # TODO error, bad page name
+            pass
+
+    def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
+        # resize icon file
+        icon = Image.open(iconFile)
+        image = PILHelper.create_scaled_image(self._deck, icon)
+        draw = ImageDraw.Draw(image)
+
+        # add border
+        if borderColor:
+            draw.rounded_rectangle((2, 2, image.width - 2, image.height - 2), 5, '#00000000', borderColor, 5)
+
+        # add label
+        if label:
+            # wrap text
+            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'Roboto-Regular.ttf'), 14)
+            lines = [label]
+            temp = ''
+            while draw.textlength(lines[-1], font) >= image.width:
+                splindex = lines[-1].rfind(' ')
+                if splindex < 0:
+                    break
+                temp = lines[-1][splindex:] + temp
+                lines[-1] = lines[-1][:splindex]
+                if draw.textlength(lines[-1], font) < image.width:
+                    lines.append(temp[1:])
+            # overlay text
+            draw.multiline_text((image.width / 2, image.height - 3), '\n'.join(lines), 'white', font, "md")
+
+        self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
+    
+    def _camsKeyPressed_callback(self, state: bool, context: Any) -> None:
+        # TODO
         pass
 
+    def _editPresetsPressed_callback(self, state: bool, context: Any) -> None:
+        # TODO
+        pass
+
+    def _presetKeyPressed_callback(self, state: bool, preset: str) -> None:
+        if not state:
+            return
+        self._renderIcon(loadedConfig.Presets)
+        self._callPreset(preset)
+
+    def _globalKeyPressed_callback(self, deck, key, state):
+        (handler, context) = self._keyHandlers[key]
+        handler(state, context)
+        pass
 
 # EXAMPLE CODE
 # ------------

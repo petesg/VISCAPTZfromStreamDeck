@@ -37,16 +37,15 @@
             }
         }
     ],
-    "Presets" : [
-        {
-            "name" : "preset1",
+    "Presets" : {
+        "preset1" : {
             "label" : "P1",
             "icon" : "icon1.png"
         },
-        {
-            "name" : "preset2",
+        "preset2" : {
             "label" : "P2",
             "icon" : "icon2.png"
         }
-    ]
+    },
+    "AssetsPath" : "assets"
 }
