@@ -16,7 +16,7 @@ class ViscaDeck:
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
     _callPreset: Callable[[str], None]
-    _keyHandlers: list[tuple[Callable[[bool, Any], None], Any]]
+    _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _selectedCams: list[str]
     
     def __init__(self, loadedConfig, presetCallback):
@@ -117,23 +117,28 @@ class ViscaDeck:
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
     
-    def _camsKeyPressed_callback(self, state: bool, context: Any) -> None:
+    def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
         pass
 
-    def _editPresetsPressed_callback(self, state: bool, context: Any) -> None:
+    def _editPresetsPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
         pass
 
-    def _presetKeyPressed_callback(self, state: bool, preset: str) -> None:
+    def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
         if not state:
             return
-        self._renderIcon(loadedConfig.Presets)
+        # TODO don't do anything if a preset is already being called (does that already take care of itself bc we're not using asynch callback and this blocks?)
+        p = getattr(loadedConfig.Presets, preset)
+        self._renderIcon(p.icon, p.label, 'yellow', key)
         self._callPreset(preset)
+        # TODO move delay here (wait, why again?)
+        self._renderIcon(p.icon, p.label, 'red', key)
+        # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
     def _globalKeyPressed_callback(self, deck, key, state):
         (handler, context) = self._keyHandlers[key]
-        handler(state, context)
+        handler(state, key, context)
         pass
 
 # EXAMPLE CODE
