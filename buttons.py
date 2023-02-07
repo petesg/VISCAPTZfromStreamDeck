@@ -90,7 +90,7 @@ class ViscaDeck:
 
     def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
         # resize icon file
-        icon = Image.open(iconFile)
+        icon = Image.open(os.path.join(self._loadedConfig.AssetsPath, iconFile))
         image = PILHelper.create_scaled_image(self._deck, icon)
         draw = ImageDraw.Draw(image)
 
