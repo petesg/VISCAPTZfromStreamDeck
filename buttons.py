@@ -19,7 +19,7 @@ class ViscaDeck:
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _selectedCams: list[str]
     
-    def __init__(self, loadedConfig, presetCallback):
+    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None]):
         self._config = loadedConfig
         self._callPreset = presetCallback
 
@@ -116,7 +116,7 @@ class ViscaDeck:
             draw.multiline_text((image.width / 2, image.height - 3), '\n'.join(lines), 'white', font, "md")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
-    
+
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
         pass

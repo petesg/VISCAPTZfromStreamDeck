@@ -116,7 +116,7 @@ def script_properties():
 
     obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
     obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
-
+    
     # script_update(None)
 
     return props
@@ -130,6 +130,7 @@ def script_properties():
 def configureMain():
     global loadedConfig
     global cameras
+    global deck
     loadedConfig = None
     cameras = []
     print("loading config...")
