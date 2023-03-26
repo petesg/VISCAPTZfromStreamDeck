@@ -6,15 +6,25 @@
             "channel" : 1,
             "port" : 1259,
             "Assignments" : {
-                "preset1" : {
-                    "pan" : 32000,
-                    "tilt" : 32000,
-                    "zoom" : 32000
+                "wide" : {
+                    "pan" : 28,
+                    "tilt" : 65448,
+                    "zoom" : 0
                 },
-                "preset2" : {
-                    "pan" : 1500,
-                    "tilt" : 1600,
-                    "zoom" : 1700
+                "front" : {
+                    "pan" : 54,
+                    "tilt" : 65402,
+                    "zoom" : 10363
+                },
+                "ambo" : {
+                    "pan" : 65454,
+                    "tilt" : 65478,
+                    "zoom" : 11907
+                },
+                "altar" : {
+                    "pan" : 35,
+                    "tilt" : 65470,
+                    "zoom" : 11657
                 }
             }
         },
@@ -24,27 +34,45 @@
             "channel" : 1,
             "port" : 1259,
             "Assignments" : {
-                "preset1" : {
-                    "pan" : 32000,
-                    "tilt" : 32000,
-                    "zoom" : 32000
+                "wide" : {
+                    "pan" : 65390,
+                    "tilt" : 65484,
+                    "zoom" : 0
                 },
-                "preset2" : {
-                    "pan" : 2500,
-                    "tilt" : 2600,
-                    "zoom" : 2700
+                "front" : {
+                    "pan" : 65504,
+                    "tilt" : 65439,
+                    "zoom" : 9614
+                },
+                "ambo" : {
+                    "pan" : 65406,
+                    "tilt" : 65496,
+                    "zoom" : 13497
+                },
+                "altar" : {
+                    "pan" : 65529,
+                    "tilt" : 65485,
+                    "zoom" : 8786
                 }
             }
         }
     ],
     "Presets" : {
-        "preset1" : {
-            "label" : "P1",
-            "icon" : "icon1.png"
+        "wide" : {
+            "label" : "WIDE",
+            "icon" : "icoWide.png"
         },
-        "preset2" : {
-            "label" : "P2",
-            "icon" : "icon2.png"
+        "front" : {
+            "label" : "FRONT",
+            "icon" : "front.png"
+        },
+        "ambo" : {
+            "label" : "AMBO",
+            "icon" : "icoAmbo.png"
+        },
+        "altar" : {
+            "label" : "ALTAR",
+            "icon" : "icoAltar.png"
         }
     },
     "AssetsPath" : "assets"
