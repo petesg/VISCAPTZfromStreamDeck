@@ -114,8 +114,8 @@ def script_properties():
     obs.obs_property_set_modified_callback(p, delayDurChanged_callback)
     obs.obs_property_set_long_description(p, 'Compoensation delay for network lag in video feed')
 
-    obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
-    obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
+    # obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
+    # obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
     
     # script_update(None)
 
