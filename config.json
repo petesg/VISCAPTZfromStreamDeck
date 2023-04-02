@@ -64,7 +64,7 @@
         },
         "front" : {
             "label" : "FRONT",
-            "icon" : "front.png"
+            "icon" : "icoFront.png"
         },
         "ambo" : {
             "label" : "AMBO",
@@ -75,5 +75,5 @@
             "icon" : "icoAltar.png"
         }
     },
-    "AssetsPath" : "assets"
+    "AssetsPath" : "C:\\Users\\StMar\\Documents\\peter\\VISCAPTZfromStreamDeck\\assets"
 }

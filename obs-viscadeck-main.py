@@ -229,10 +229,10 @@ def callPreset_callback(preset: str) -> None:
             return True
     return False
 
-def testNearButton_callback(props, prop):
-    print("dbg hit near")
-    callPreset_callback("preset1")
+# def testNearButton_callback(props, prop):
+#     print("dbg hit near")
+#     callPreset_callback("altar")
 
-def testFarButton_callback(props, prop):
-    print("dbg hit far")
-    callPreset_callback("preset2")
+# def testFarButton_callback(props, prop):
+#     print("dbg hit far")
+#     callPreset_callback("wide")
