@@ -28,6 +28,9 @@ class ViscaDeck:
         self._selectedCams = ["foo", "bar"] # TODO implement this
 
         self._connectSurface()
+    
+    def close(self):
+        self._disconnectSurface()
 
     def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
@@ -66,7 +69,8 @@ class ViscaDeck:
     
     def _disconnectSurface(self):
         # TODO close some threads or something?
-        self._deck.close()
+        if deck:
+            self._deck.close()
         self._deck = None
     
     def _drawDeck(self, page):
@@ -107,7 +111,7 @@ class ViscaDeck:
 
         # add border
         if borderColor:
-            draw.rounded_rectangle((2, 2, image.width - 2, image.height - 2), 5, '#00000000', borderColor, 5)
+            draw.rounded_rectangle((2, 2, image.width - 2, image.height - 2), 7, '#00000000', borderColor, 6)
 
         # add label
         if label:
@@ -137,14 +141,18 @@ class ViscaDeck:
         pass
 
     def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
+        print(f'KEY CALLBACK')
         if not state:
             return
+        print(f'PRESSED')
         # TODO don't do anything if a preset is already being called (does that already take care of itself bc we're not using asynch callback and this blocks?)
         p = getattr(self._loadedConfig.Presets, preset)
-        self._renderIcon(p.icon, p.label, 'yellow', key)
+        print(f'RENDER rendering {key} as stdby')
+        self._renderIcon(p.icon, p.label, 'red', key)
         self._callPreset(preset)
         # TODO move delay here (wait, why again?)
-        self._renderIcon(p.icon, p.label, 'red', key)
+        self._renderIcon(p.icon, p.label, None, key)
+        print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
     def _globalKeyPressed_callback(self, deck, key, state):

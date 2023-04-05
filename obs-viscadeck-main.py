@@ -41,22 +41,26 @@ def script_load(settings):
     # except AttributeError:
     #     print(f"no configpath to preload")
     # loadSuccess = configureMain()
-    pass
 
-# def script_unload():
-#     pass
+def script_unload():
+    print('(unload)')
+    if deck:
+        deck.close()
 
 def script_save(settings):
     print("(save)")
     # global configPath
     # settings.configPath = configPath
     # print("saved")
+    if deck:
+        deck.close()
 
 def script_defaults(settings):
     print("(defaults)")
     importlib.reload(ptz)
     importlib.reload(buttons)
     print("local modules reloaded")
+
 
 # runs any time properties are changed by the user
 def script_update(settings):
@@ -212,8 +216,9 @@ def callPreset_callback(preset: str) -> None:
     # TODO make sure preset exists
     print(f'calling preset "{preset}"')
     liveCam = getLiveCamera()
-    print(f'"{liveCam.name}" is live')
-    for i in range(len(cameras)):
+    if liveCam:
+        print(f'"{liveCam.name}" is live')
+    for i in range(len(cameras)): # TODO use selectedCameras here instead
         print(f'camera {i} {("is not", "is")[cameras[i] == liveCam]} live cam')
         if cameras[i] != liveCam:
             try:
