@@ -26,9 +26,11 @@ def script_description():
 def script_load(settings):
     global configPath
     global loadSuccess
+    global delayDur
     print("(load)")
 
     configPath = obs.obs_data_get_string(settings, "picker_configPath")
+    delayDur = obs.obs_data_get_int(settings, "picker_delay")
     loadSuccess = configureMain()
     print(f"config loaded: {loadedConfig}")
     # configureMain()
