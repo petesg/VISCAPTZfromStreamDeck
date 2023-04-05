@@ -69,8 +69,16 @@ class ViscaDeck:
     
     def _disconnectSurface(self):
         # TODO close some threads or something?
-        if deck:
-            self._deck.close()
+        print('closing deck...')
+        if self._deck:
+            self._deck.close() # TODO this is still somehow leaving some threads hanging
+        # block until threads are all gone
+        for t in threading.enumerate():
+            try:
+                t.join()
+            except RuntimeError:
+                pass
+        print('now safe to exit')
         self._deck = None
     
     def _drawDeck(self, page):
@@ -107,16 +115,20 @@ class ViscaDeck:
         else:
             icon = Image.new("RGB", (100,100), "black")
         image = PILHelper.create_scaled_image(self._deck, icon)
-        draw = ImageDraw.Draw(image)
 
         # add border
         if borderColor:
-            draw.rounded_rectangle((2, 2, image.width - 2, image.height - 2), 7, '#00000000', borderColor, 6)
+            border = Image.new("RGBA", image.size, '#00000000')
+            ovDraw = ImageDraw.Draw(border)
+            ovDraw.rounded_rectangle((1, 1, image.width - 1, image.height - 1), 7, '#00000000', borderColor, 4)
+            image = Image.alpha_composite(image.convert('RGBA'), border).convert('RGB')
+        
+        draw = ImageDraw.Draw(image)
 
         # add label
         if label:
             # wrap text
-            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'Roboto-Regular.ttf'), 14)
+            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12)
             lines = [label]
             temp = ''
             while draw.textlength(lines[-1], font) >= image.width:
@@ -128,7 +140,7 @@ class ViscaDeck:
                 if draw.textlength(lines[-1], font) < image.width:
                     lines.append(temp[1:])
             # overlay text
-            draw.multiline_text((image.width / 2, image.height - 3), '\n'.join(lines), 'white', font, "md")
+            draw.multiline_text((image.width / 2, 6), '\n'.join(lines), 'white', font, "ma")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
 

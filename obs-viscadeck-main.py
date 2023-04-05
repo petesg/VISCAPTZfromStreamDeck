@@ -32,6 +32,7 @@ def script_load(settings):
     configPath = obs.obs_data_get_string(settings, "picker_configPath")
     delayDur = obs.obs_data_get_int(settings, "picker_delay")
     loadSuccess = configureMain()
+    print(f'delaydur is {delayDur}')
     print(f"config loaded: {loadedConfig}")
     # configureMain()
     # print(f'"settings" = {{{settings}}}')
@@ -45,6 +46,7 @@ def script_load(settings):
     # loadSuccess = configureMain()
 
 def script_unload():
+    global deck
     print('(unload)')
     if deck:
         deck.close()
@@ -54,8 +56,8 @@ def script_save(settings):
     # global configPath
     # settings.configPath = configPath
     # print("saved")
-    if deck:
-        deck.close()
+    # if deck:
+    #     deck.close()
 
 def script_defaults(settings):
     print("(defaults)")
