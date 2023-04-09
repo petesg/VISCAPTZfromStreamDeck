@@ -25,6 +25,11 @@
                     "pan" : 35,
                     "tilt" : 65470,
                     "zoom" : 11657
+                },
+                "choir" : {
+                    "pan" : 65252,
+                    "tilt" : 65447,
+                    "zoom" : 9489
                 }
             }
         },
@@ -53,6 +58,11 @@
                     "pan" : 65529,
                     "tilt" : 65485,
                     "zoom" : 8786
+                },
+                "choir" : {
+                    "pan" : 65238,
+                    "tilt" : 65470,
+                    "zoom" : 9115
                 }
             }
         }
@@ -73,6 +83,10 @@
         "altar" : {
             "label" : "ALTAR",
             "icon" : "icoAltar.png"
+        },
+        "choir" : {
+            "label" : "CHOIR",
+            "icon" : "icoFront.png"
         }
     },
     "AssetsPath" : "C:\\Users\\StMar\\Documents\\peter\\VISCAPTZfromStreamDeck\\assets"
