@@ -1,6 +1,8 @@
 import os
 import threading
 
+from __time import curMillis
+
 from PIL import Image, ImageDraw, ImageFont
 from typing import List, Callable, Any
 from StreamDeck.DeviceManager import DeviceManager
@@ -16,14 +18,18 @@ class ViscaDeck:
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
     _callPreset: Callable[[str], None]
+    _callImmediateScene: Callable[[str], None]
+    _toggleStream: Callable[[None], bool]
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _selectedCams: list[str]
+    _holdTimer: int
     
-    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None]):
+    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
         print("-deck init")
         # print(loadedConfig)
         self._config = loadedConfig
         self._callPreset = presetCallback
+        self._toggleStream = streamCallback
         self._loadedConfig = loadedConfig
         self._selectedCams = ["foo", "bar"] # TODO implement this
 
@@ -96,14 +102,26 @@ class ViscaDeck:
                 self._renderIcon(details.icon, details.label, None, i)
                 self._keyHandlers[i] = (self._presetKeyPressed_callback, p)
                 i += 1
-            # camera button
+            # populate non-camera scene buttons
+            for p in list(self._loadedConfig.ExtraScenes.__dict__):
+                if (i + 1) % self._deck.KEY_COLS == 0:
+                    i += 1
+                details = self._loadedConfig.Presets.__dict__[p]
+                self._renderIcon(details.icon, details.label, None, i)
+                self._keyHandlers[i] = (self._sceneKeyPressed_callback, p)
+                i += 1
+            # stream button
             i = self._deck.KEY_COLS - 1
+            self._renderIcon(None, "START\nSTREAM", 'green', i)
+            self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
+            # camera button
+            i = self._deck.key_count() - 1
             self._renderIcon("icoCamera.png", ', '.join(self._selectedCams), None, i)
             self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
             # edit button
-            i = self._deck.KEY_COLS * 2 - 1
-            self._renderIcon("icoEdit.png", "", None, i)
-            self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
+            # i = self._deck.KEY_COLS * 2 - 1
+            # self._renderIcon("icoEdit.png", "", None, i)
+            # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
         else:
             # TODO error, bad page name
             pass
@@ -128,7 +146,7 @@ class ViscaDeck:
         # add label
         if label:
             # wrap text
-            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12)
+            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12 if iconFile else 24)
             lines = [label]
             temp = ''
             while draw.textlength(lines[-1], font) >= image.width:
@@ -140,7 +158,7 @@ class ViscaDeck:
                 if draw.textlength(lines[-1], font) < image.width:
                     lines.append(temp[1:])
             # overlay text
-            draw.multiline_text((image.width / 2, 6), '\n'.join(lines), 'white', font, "ma")
+            draw.multiline_text((image.width / 2, 6 if iconFile else 36), '\n'.join(lines), 'white', font, "ma" if iconFile else "mm")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
 
@@ -151,6 +169,19 @@ class ViscaDeck:
     def _editPresetsPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
         pass
+
+    def _streamKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
+        if state:
+            if not self._holdTimer:
+                self._holdTimer = curMillis() + 2000
+                # TODO render intermediate border color
+            return
+        if not state and self._holdTimer and curMillis() > self._holdTimer:
+            if self._toggleStream():
+                self._renderIcon(None, "END\nSTREAM", 'green', key)
+            else:
+                self._renderIcon(None, "START\nSTREAM", 'red', key)
+            pass
 
     def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
         print(f'KEY CALLBACK')
@@ -166,6 +197,11 @@ class ViscaDeck:
         self._renderIcon(p.icon, p.label, None, key)
         print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
+
+    def _sceneKeyPressed_callback(self, state: bool, key: int, scene: str) -> None:
+        if not state:
+            return
+        self._callImmediateScene(scene)
 
     def _globalKeyPressed_callback(self, deck, key, state):
         (handler, context) = self._keyHandlers[key]

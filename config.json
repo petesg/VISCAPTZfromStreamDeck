@@ -89,5 +89,19 @@
             "icon" : "icoFront.png"
         }
     },
+    "ExtraScenes" : {
+        "intro" : {
+            "label" : "INTRO",
+            "icon" : ""
+        },
+        "break" : {
+            "label" : "BREAK",
+            "icon" : ""
+        },
+        "credits" : {
+            "label" : "END",
+            "icon" : ""
+        }
+    },
     "AssetsPath" : "C:\\Users\\StMar\\Documents\\peter\\VISCAPTZfromStreamDeck\\assets"
 }
