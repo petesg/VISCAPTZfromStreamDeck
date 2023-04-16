@@ -22,7 +22,7 @@ class ViscaDeck:
     _toggleStream: Callable[[None], bool]
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _selectedCams: list[str]
-    _holdTimer: int
+    _holdTimer: int = 0
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
         print("-deck init")
@@ -30,6 +30,7 @@ class ViscaDeck:
         self._config = loadedConfig
         self._callPreset = presetCallback
         self._toggleStream = streamCallback
+        self._callImmediateScene = sceneCallback
         self._loadedConfig = loadedConfig
         self._selectedCams = ["foo", "bar"] # TODO implement this
 
@@ -106,13 +107,13 @@ class ViscaDeck:
             for p in list(self._loadedConfig.ExtraScenes.__dict__):
                 if (i + 1) % self._deck.KEY_COLS == 0:
                     i += 1
-                details = self._loadedConfig.Presets.__dict__[p]
+                details = self._loadedConfig.ExtraScenes.__dict__[p]
                 self._renderIcon(details.icon, details.label, None, i)
                 self._keyHandlers[i] = (self._sceneKeyPressed_callback, p)
                 i += 1
             # stream button
             i = self._deck.KEY_COLS - 1
-            self._renderIcon(None, "START\nSTREAM", 'green', i)
+            self._renderIcon(None, "START\nSTREAM", 'red', i)
             self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
             # camera button
             i = self._deck.key_count() - 1
@@ -146,13 +147,13 @@ class ViscaDeck:
         # add label
         if label:
             # wrap text
-            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12 if iconFile else 24)
-            lines = [label]
+            font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12 if iconFile else 16)
+            lines = label.split('\n')
             temp = ''
             while draw.textlength(lines[-1], font) >= image.width:
                 splindex = lines[-1].rfind(' ')
                 if splindex < 0:
-                    break
+                    break # TODO make this restart the whole deal with a smaller font size instead of just giving up
                 temp = lines[-1][splindex:] + temp
                 lines[-1] = lines[-1][:splindex]
                 if draw.textlength(lines[-1], font) < image.width:
@@ -172,16 +173,17 @@ class ViscaDeck:
 
     def _streamKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         if state:
-            if not self._holdTimer:
-                self._holdTimer = curMillis() + 2000
-                # TODO render intermediate border color
-            return
-        if not state and self._holdTimer and curMillis() > self._holdTimer:
+        #     if not self._holdTimer:
+        #         self._holdTimer = curMillis() + 2000
+        #         # TODO render intermediate border color
+        #     return
+        # if not state and self._holdTimer and curMillis() > self._holdTimer:
+            print('stream button pressed')
             if self._toggleStream():
                 self._renderIcon(None, "END\nSTREAM", 'green', key)
             else:
                 self._renderIcon(None, "START\nSTREAM", 'red', key)
-            pass
+            # self._holdTimer = 0
 
     def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
         print(f'KEY CALLBACK')
