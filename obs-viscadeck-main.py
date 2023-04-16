@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 # cameraScenes = ["", ""]
 cameras = []
+otherScenes = {}
 loadedConfig = None
 loadSuccess = False
 configPath = ""
@@ -72,6 +73,7 @@ def script_update(settings):
     global configPath
     global cameras
     global loadedConfig
+    global otherScenes
     # global loadSuccess
 
     print("(update)")
@@ -87,9 +89,15 @@ def script_update(settings):
     # TODO add/remove scene pickers based on potentially different number of cameras
     # ^ (I don't think this is possible actually?  gotta rely on user reloading script when changed)
 
+    if not loadedConfig:
+        return
+
     # for i in range(len(cameras)):
     for camera in cameras:
         camera.sceneName = obs.obs_data_get_string(settings, f"picker_cam_{camera.name}")
+    
+    for escene in loadedConfig.ExtraScenes.__dict__:
+        otherScenes[escene] = obs.obs_data_get_string(settings, f'picker_escene_{escene}')
 
 # sets up property setter UI elements
 def script_properties():
@@ -112,12 +120,19 @@ def script_properties():
     scenes = obs.obs_frontend_get_scenes()
     print(f"configuring user properties for {len(cameras)} cameras")
     for camera in cameras:
-        p = obs.obs_properties_add_list(props, f"picker_cam_{camera.name}", f'"{camera.name}" Scene', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+        p = obs.obs_properties_add_list(props, f"picker_cam_{camera.name}", f'"{camera.name}" Camera', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
         obs.obs_property_set_long_description(p, f'Scene corresponding to  "{camera.name}" camera')
         for scene in scenes:
             name = obs.obs_source_get_name(scene)
             obs.obs_property_list_add_string(p, name, name)
     
+    for extraScene in loadedConfig.ExtraScenes.__dict__:
+        p = obs.obs_properties_add_list(props, f"picker_escene_{extraScene}", f'"{extraScene}" Scene', obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+        obs.obs_property_set_long_description(p, f'Scene corresponding to "{extraScene}"')
+        for scene in scenes:
+            name = obs.obs_source_get_name(scene)
+            obs.obs_property_list_add_string(p, name, name)
+
     p = obs.obs_properties_add_int(props, "picker_delay", "Lag Comp. (ms)", 0, 10000, 10)
     obs.obs_property_set_modified_callback(p, delayDurChanged_callback)
     obs.obs_property_set_long_description(p, 'Compoensation delay for network lag in video feed')
@@ -163,7 +178,7 @@ def configureMain():
         return False
 
     # setup streamdeck
-    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback)
+    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback, callScene_callback, toggleStream_callback)
 
     return True
 
@@ -237,6 +252,26 @@ def callPreset_callback(preset: str) -> None:
             transitionScene(cameras[i])
             return True
     return False
+
+def callScene_callback(page: str):
+    global otherScenes
+    scenes = obs.obs_frontend_get_scenes()
+    for scene in scenes:
+        name = obs.obs_source_get_name(scene)
+        if name == otherScenes[page]:
+            obs.obs_frontend_set_current_scene(scene)
+
+def toggleStream_callback() -> bool:
+    if not obs.obs_frontend_streaming_active():
+        obs.obs_frontend_streaming_start()
+        print('starting stream')
+        # obs.obs_frontend_recording_start()
+        return True
+    else:
+        obs.obs_frontend_streaming_stop()
+        print('stopping stream')
+        # obs.obs_frontend_recording_stop()
+        return False
 
 # def testNearButton_callback(props, prop):
 #     print("dbg hit near")
