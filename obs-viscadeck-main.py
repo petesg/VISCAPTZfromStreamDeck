@@ -201,6 +201,13 @@ def transitionScene(cam):
         if name == cam.sceneName:
             obs.obs_frontend_set_current_scene(scene)
 
+def previewScene(cam):
+    scenes = obs.obs_frontend_get_scenes()
+    for scene in scenes:
+        name = obs.obs_source_get_name(scene)
+        if name == cam.sceneName:
+            obs.obs_frontend_set_current_preview_scene(scene)
+
 # callbacks
 # ---------
 
@@ -248,6 +255,8 @@ def callPreset_callback(preset: str) -> None:
                 return False
             result = cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
             print(f'camera move {"success" if result else "failed"}')
+
+            previewScene(cameras[i])
             time.sleep(delayDur / 1000)
             transitionScene(cameras[i])
             return True
