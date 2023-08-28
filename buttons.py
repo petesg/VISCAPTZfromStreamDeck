@@ -123,6 +123,48 @@ class ViscaDeck:
             # i = self._deck.KEY_COLS * 2 - 1
             # self._renderIcon("icoEdit.png", "", None, i)
             # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
+        elif page == "MOVE":
+            # arrow keys
+            i = self._getKeyId(2, 0)
+            self._renderIcon('icoUpArrow.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'UP')
+            i = self._getKeyId(1, 1)
+            self._renderIcon('icoLeftArrow.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'LEFT')
+            i = self._getKeyId(3, 1)
+            self._renderIcon('icoRightArrow.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'RIGHT')
+            i = self._getKeyId(2, 2)
+            self._renderIcon('icoDownArrow.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'DOWN')
+            # zoom keys
+            i = self._getKeyId(1, 0)
+            self._renderIcon('icoZoomIn.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'IN')
+            i = self._getKeyId(1, 2)
+            self._renderIcon('icoZoomOut.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'Out')
+            # reset key
+            i = self._getKeyId(2, 1)
+            self._renderIcon('icoReset_r.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraResetPressed_callback, None)
+            # submit/cancel keys
+            i = self._getKeyId(3, 0)
+            self._renderIcon('icoCheck_g.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraSubmitPressed_callback, None)
+            i = self._getKeyId(3, 2)
+            self._renderIcon('icoBack_r.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraCancelPressed_callback, None)
+            # speed keys
+            i = self._getKeyId(0, 0)
+            self._renderIcon('icoSpeedSlow.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 0)
+            i = self._getKeyId(0, 1)
+            self._renderIcon('icoSpeedMedium.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 1)
+            i = self._getKeyId(0, 2)
+            self._renderIcon('icoSpeedFast.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 2)
         else:
             # TODO error, bad page name
             pass
@@ -162,6 +204,13 @@ class ViscaDeck:
             draw.multiline_text((image.width / 2, 6 if iconFile else 36), '\n'.join(lines), 'white', font, "ma" if iconFile else "mm")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
+
+    def _getKeyId(self, col: int, row: int):
+        if col >= self._deck.KEY_COLS:
+            raise IndexError('Key column out of range')
+        elif row >= self._deck.KEY_ROWS:
+            raise IndexError('Key row out of range')
+        return self._deck.KEY_COLS * row + col
 
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
@@ -209,6 +258,46 @@ class ViscaDeck:
         (handler, context) = self._keyHandlers[key]
         if handler:
             handler(state, key, context)
+        pass
+
+    def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
+        if not pressed:
+            # TODO send stop command
+            return
+        # TODO send move command
+        if dir == 'UP':
+            pass
+        elif dir == 'DOWN':
+            pass
+        elif dir == 'LEFT':
+            pass
+        elif dir == 'RIGHT':
+            pass
+        else:
+            raise ValueError(f'Invalid pan/tilt direction: "{dir}"')
+
+    def _moveCameraZoomPressed_callback(self, pressed: bool, key: int, dir: str):
+        if not pressed:
+            # TODO send stop command
+            return
+        # TODO send zoom command
+        if dir == 'IN':
+            pass
+        elif dir == 'OUT':
+            pass
+        else:
+            raise ValueError(f'Invalid zoom direction: "{dir}"')
+
+    def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
+        pass
+
+    def _moveCameraSubmitPressed_callback(self, pressed: bool, key: int, context: Any):
+        pass
+
+    def _moveCameraCancelPressed_callback(self, pressed: bool, key: int, context: Any):
+        pass
+
+    def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, speed: int)
         pass
 
 # EXAMPLE CODE
