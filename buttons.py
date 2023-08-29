@@ -1,5 +1,6 @@
 import os
 import threading
+import ptz
 
 from __time import curMillis
 
@@ -23,6 +24,10 @@ class ViscaDeck:
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _selectedCams: list[str]
     _holdTimer: int = 0
+    _camDriveSpeed: int = 1
+    _drivenCamera: ptz.Camera = None
+    _advDriveContext: Any
+    _driveFinishedCallback: Callable
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
         print("-deck init")
@@ -38,6 +43,13 @@ class ViscaDeck:
     
     def close(self):
         self._disconnectSurface()
+
+    def startAdvancedTransition(self, camera: ptz.Camera, position: object, finishedCallback: Callable, context: Any):
+        self._drawDeck("DRIVE")
+        self._advDriveContext = context
+        self._drivenCamera = camera
+        self._driveTarget = position
+        self._driveFinishedCallback = finishedCallback
 
     def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
@@ -123,7 +135,7 @@ class ViscaDeck:
             # i = self._deck.KEY_COLS * 2 - 1
             # self._renderIcon("icoEdit.png", "", None, i)
             # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
-        elif page == "MOVE":
+        elif page == "DRIVE":
             # arrow keys
             i = self._getKeyId(2, 0)
             self._renderIcon('icoUpArrow.png', None, None, i)
@@ -156,15 +168,10 @@ class ViscaDeck:
             self._renderIcon('icoBack_r.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraCancelPressed_callback, None)
             # speed keys
-            i = self._getKeyId(0, 0)
-            self._renderIcon('icoSpeedSlow.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 0)
-            i = self._getKeyId(0, 1)
-            self._renderIcon('icoSpeedMedium.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 1)
-            i = self._getKeyId(0, 2)
-            self._renderIcon('icoSpeedFast.png', None, 'White', i)
-            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 2)
+            for j in range(3):
+                i = self._getKeyId(0, j)
+                self._renderIcon(f'icoSpeed{j}.png', None, 'white' if j == self._camDriveSpeed else None, i)
+                self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, j)
         else:
             # TODO error, bad page name
             pass
@@ -211,6 +218,13 @@ class ViscaDeck:
         elif row >= self._deck.KEY_ROWS:
             raise IndexError('Key row out of range')
         return self._deck.KEY_COLS * row + col
+
+    def _exitAdvancedTransition(self):
+        self._driveFinishedCallback = None
+        self._drivenCamera = None
+        self._driveTarget = None
+        self._advDriveContext = None
+        self._drawDeck("HOME")
 
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
@@ -261,44 +275,58 @@ class ViscaDeck:
         pass
 
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
+        pspeed = [0x01, 0x0A, 0x18][self._camDriveSpeed]
+        tspeed = [0x01, 0x08, 0x14][self._camDriveSpeed]
+        # TODO keep matrix of pressed direction buttons to support multi-key inputs
         if not pressed:
-            # TODO send stop command
-            return
-        # TODO send move command
+            pspeed = 0
+            tspeed = 0
         if dir == 'UP':
-            pass
+            pspeed = 0
         elif dir == 'DOWN':
-            pass
+            pspeed = 0
+            tspeed = -tspeed
         elif dir == 'LEFT':
-            pass
+            pspeed = -pspeed
+            tspeed = 0
         elif dir == 'RIGHT':
-            pass
+            tspeed = 0
         else:
             raise ValueError(f'Invalid pan/tilt direction: "{dir}"')
+        self._drivenCamera.drivePanTilt(pspeed, tspeed)
 
     def _moveCameraZoomPressed_callback(self, pressed: bool, key: int, dir: str):
+        speed = [1, 3, 7][self._camDriveSpeed]
         if not pressed:
-            # TODO send stop command
-            return
-        # TODO send zoom command
-        if dir == 'IN':
+            speed = 0
+        elif dir == 'IN':
             pass
         elif dir == 'OUT':
-            pass
+            speed *= -1
         else:
             raise ValueError(f'Invalid zoom direction: "{dir}"')
+        self._drivenCamera.driveZoom(speed)
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
-        pass
+        if pressed:
+            self._drivenCamera.moveToPoint(self._driveTarget.pan, self._driveTarget.tilt, self._driveTarget.zoom)
 
     def _moveCameraSubmitPressed_callback(self, pressed: bool, key: int, context: Any):
-        pass
+        if not pressed:
+            return
+        self._driveFinishedCallback(self._advDriveContext)
+        self._exitAdvancedTransition()
 
     def _moveCameraCancelPressed_callback(self, pressed: bool, key: int, context: Any):
-        pass
+        if not pressed:
+            return
+        self._exitAdvancedTransition()
 
-    def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, speed: int)
-        pass
+    def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, speed: int):
+        for j in range(3):
+            i = self._getKeyId(0, j)
+            self._renderIcon(f'icoSpeed{j}.png', None, 'white' if key == i else None, i)
+        self._camDriveSpeed = speed
 
 # EXAMPLE CODE
 # ------------

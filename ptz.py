@@ -54,8 +54,8 @@ class Camera:
         """Drives camera at set velocity in P/T plane.
 
         ### Parameters
-        `pan`: `int` - Pan speed, between -0x18 and 0x18  
-        
+        `pan`: `int` - Pan speed, between -0x18 and 0x18
+
         `tilt`: `int` - Tilt speed, between -0x14 and 0x14
 
         ### Returns
@@ -91,7 +91,7 @@ class Camera:
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
             return False
         return True
-    
+
     def _updatePosition(self):
         print('inquiring pos')
         zoomInqMsg = f"8{self._channel}090447FF" # TODO
