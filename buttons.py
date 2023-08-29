@@ -163,7 +163,7 @@ class ViscaDeck:
             self._renderIcon('icoSpeedMedium.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 1)
             i = self._getKeyId(0, 2)
-            self._renderIcon('icoSpeedFast.png', None, None, i)
+            self._renderIcon('icoSpeedFast.png', None, 'White', i)
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, 2)
         else:
             # TODO error, bad page name
