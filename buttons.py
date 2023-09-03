@@ -27,6 +27,7 @@ class ViscaDeck:
     _holdTimer: int = 0
     _camDriveSpeed: int = 1
     _drivenCamera: ptz.Camera = None
+    _driveActive: bool = False
     _advDriveContext: Any
     _driveFinishedCallback: Callable
     
@@ -226,6 +227,7 @@ class ViscaDeck:
         self._drivenCamera = None
         self._driveTarget = None
         self._advDriveContext = None
+        self._driveActive = False
         self._drawDeck("HOME")
 
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
@@ -282,8 +284,12 @@ class ViscaDeck:
         tspeed = [0x01, 0x08, 0x14][self._camDriveSpeed]
         # TODO keep matrix of pressed direction buttons to support multi-key inputs
         if not pressed:
-            pspeed = 0
-            tspeed = 0
+            if self._driveActive:
+                pspeed = 0
+                tspeed = 0
+            else:
+                # button is just getting released from key press to go into drive mode
+                return
         if dir == 'UP':
             pspeed = 0
         elif dir == 'DOWN':
@@ -297,11 +303,16 @@ class ViscaDeck:
         else:
             raise ValueError(f'Invalid pan/tilt direction: "{dir}"')
         self._drivenCamera.drivePanTilt(pspeed, tspeed)
+        self._driveActive = True
 
     def _moveCameraZoomPressed_callback(self, pressed: bool, key: int, dir: str):
         speed = [1, 3, 7][self._camDriveSpeed]
         if not pressed:
-            speed = 0
+            if self._driveActive:
+                speed = 0
+            else:
+                # button is just getting released from key press to go into drive mode
+                return
         elif dir == 'IN':
             pass
         elif dir == 'OUT':
@@ -309,6 +320,7 @@ class ViscaDeck:
         else:
             raise ValueError(f'Invalid zoom direction: "{dir}"')
         self._drivenCamera.driveZoom(speed)
+        self._driveActive = True
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed:
