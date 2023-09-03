@@ -82,10 +82,10 @@ class Camera:
         ### Returns
         `bool` - Whether command was ACK'ed by camera.
         """
-        dir = 0 if speed == 0 else 3 if speed > 0 else 2
+        dir = 0 if speed == 0 else 2 if speed > 0 else 3
         speed = min(abs(int(speed)), 7)
         
-        driveStr = f'8{self._channel:01X}010408{dir}{speed}FF'
+        driveStr = f'8{self._channel:01X}010407{dir}{speed}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
@@ -150,18 +150,23 @@ class Camera:
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
-            print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
-            # TODO should I use a regex here instead of equality?
-            # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
-            if re.compile(r"904[\da-f]ff$").match(response.hex()):
-                ack = True
-                print('response is ack')
-            # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
-            #     retries -= 1
-            #     nak = True
-            else:
-                self._sparePackets += [response]
-                print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
+            # TODO the following code crashes if timeout is reached with no message received (because `response` is `None`)
+            try:
+                print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
+                # TODO should I use a regex here instead of equality?
+                # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
+                if re.compile(r"904[\da-f]ff$").match(response.hex()):
+                    ack = True
+                    print('response is ack')
+                # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
+                #     retries -= 1
+                #     nak = True
+                else:
+                    self._sparePackets += [response]
+                    print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
+            except AttributeError:
+                ack = False
+                # there was no response
         return ack
 
     def _checkIfAwaited(self, packet):

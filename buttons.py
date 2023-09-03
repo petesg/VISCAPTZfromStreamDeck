@@ -156,7 +156,7 @@ class ViscaDeck:
             self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'IN')
             i = self._getKeyId(1, 2)
             self._renderIcon('icoZoomOut.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'Out')
+            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'OUT')
             # reset key
             i = self._getKeyId(2, 1)
             self._renderIcon('icoReset_r.png', None, None, i)
@@ -326,6 +326,8 @@ class ViscaDeck:
         self._exitAdvancedTransition()
 
     def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, speed: int):
+        if not pressed:
+            return
         for j in range(3):
             i = self._getKeyId(0, j)
             self._renderIcon(f'icoSpeed{j}.png', None, 'white' if key == i else None, i)
