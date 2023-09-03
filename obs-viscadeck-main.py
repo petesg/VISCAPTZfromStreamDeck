@@ -142,6 +142,7 @@ def script_properties():
     # obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
 
     p = obs.obs_properties_add_bool(props, "picker_advMode", "Advanced Mode:")
+    obs.obs_property_set_modified_callback(p, advModeChanged_callback)
     obs.obs_property_set_long_description(p, 'Enable additional control options')
     
     # script_update(None)
@@ -245,6 +246,7 @@ def delayDurChanged_callback(props, prop, settings):
 def advModeChanged_callback(props, prop, settings):
     global advancedMode
     advancedMode = obs.obs_data_get_bool(settings, "picker_advMode")
+    print(f'advanced mode is {"on" if advancedMode else "off"}')
 
 def callPreset_callback(preset: str) -> None:
     # TODO make sure preset exists

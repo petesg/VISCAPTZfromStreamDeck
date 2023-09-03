@@ -18,6 +18,7 @@ class ViscaDeck:
 
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
+    _currentPage: str
     _callPreset: Callable[[str], None]
     _callImmediateScene: Callable[[str], None]
     _toggleStream: Callable[[None], bool]
@@ -175,6 +176,7 @@ class ViscaDeck:
         else:
             # TODO error, bad page name
             pass
+        self._currentPage = page
 
     def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
         # resize icon file
@@ -259,8 +261,9 @@ class ViscaDeck:
         self._renderIcon(p.icon, p.label, 'red', key)
         self._callPreset(preset)
         # TODO move delay here (wait, why again?)
-        self._renderIcon(p.icon, p.label, None, key)
-        print(f'RENDER rendering {key} normal')
+        if self._currentPage == "HOME":
+            self._renderIcon(p.icon, p.label, None, key)
+            print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
     def _sceneKeyPressed_callback(self, state: bool, key: int, scene: str) -> None:

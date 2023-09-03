@@ -83,7 +83,7 @@ class Camera:
         `bool` - Whether command was ACK'ed by camera.
         """
         dir = 0 if speed == 0 else 3 if speed > 0 else 2
-        pan = min(abs(int(pan)), 7)
+        speed = min(abs(int(speed)), 7)
         
         driveStr = f'8{self._channel:01X}010408{dir}{speed}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
