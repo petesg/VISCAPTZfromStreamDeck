@@ -14,6 +14,7 @@ loadedConfig = None
 loadSuccess = False
 configPath = ""
 delayDur = 0
+advancedMode = False
 deck = None
 
 # intrinsics
@@ -65,7 +66,7 @@ def script_defaults(settings):
     importlib.reload(ptz)
     importlib.reload(buttons)
     print("local modules reloaded")
-
+    obs.obs_data_set_default_bool(settings, "picker_advMode", False)
 
 # runs any time properties are changed by the user
 def script_update(settings):
@@ -139,6 +140,10 @@ def script_properties():
 
     # obs.obs_properties_add_button(props, "testNearButton", "Near [TEMP]", testNearButton_callback)
     # obs.obs_properties_add_button(props, "testFarButton", "Far [TEMP]", testFarButton_callback)
+
+    p = obs.obs_properties_add_bool(props, "picker_advMode", "Advanced Mode:")
+    obs.obs_property_set_modified_callback(p, advModeChanged_callback)
+    obs.obs_property_set_long_description(p, 'Enable additional control options')
     
     # script_update(None)
 
@@ -238,6 +243,11 @@ def delayDurChanged_callback(props, prop, settings):
     delayDur = obs.obs_data_get_int(settings, "picker_delay")
     print(f'delaydur is {delayDur}')
 
+def advModeChanged_callback(props, prop, settings):
+    global advancedMode
+    advancedMode = obs.obs_data_get_bool(settings, "picker_advMode")
+    print(f'advanced mode is {"on" if advancedMode else "off"}')
+
 def callPreset_callback(preset: str) -> None:
     # TODO make sure preset exists
     print(f'calling preset "{preset}"')
@@ -257,10 +267,16 @@ def callPreset_callback(preset: str) -> None:
             print(f'camera move {"success" if result else "failed"}')
 
             previewScene(cameras[i])
-            time.sleep(delayDur / 1000)
-            transitionScene(cameras[i])
+            if advancedMode:
+                deck.startAdvancedTransition(cameras[i], pos, finishAdvancedTransition_callback, i)
+            else:
+                time.sleep(delayDur / 1000)
+                transitionScene(cameras[i])
             return True
     return False
+
+def finishAdvancedTransition_callback(context: any):
+    transitionScene(cameras[context])
 
 def callScene_callback(page: str):
     global otherScenes

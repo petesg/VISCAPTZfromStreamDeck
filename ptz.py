@@ -50,6 +50,48 @@ class Camera:
             return False
         return True
     
+    def drivePanTilt(self, pan: int, tilt: int) -> bool:
+        """Drives camera at set velocity in P/T plane.
+
+        ### Parameters
+        `pan`: `int` - Pan speed, between -0x18 and 0x18
+
+        `tilt`: `int` - Tilt speed, between -0x14 and 0x14
+
+        ### Returns
+        `bool` - Whether command was ACK'ed by camera.
+        """
+        pDir = 3 if pan == 0 else 2 if pan > 0 else 1
+        tDir = 3 if tilt == 0 else 1 if tilt > 0 else 2
+        pan = min(abs(int(pan)), 0x18)
+        tilt = min(abs(int(tilt)), 0x14)
+        
+        driveStr = f'8{self._channel:01X}010601{pan:02X}{tilt:02X}0{pDir}0{tDir}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+            return False
+        return True
+
+    def driveZoom(self, speed: int):
+        """Drives camera zoom at set velocity.
+
+        ### Parameters
+        `speed`: `int` - Zoom speed, between -0x7 and 0x7
+
+        ### Returns
+        `bool` - Whether command was ACK'ed by camera.
+        """
+        dir = 0 if speed == 0 else 2 if speed > 0 else 3
+        speed = min(abs(int(speed)), 7)
+        
+        driveStr = f'8{self._channel:01X}010407{dir}{speed}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+            return False
+        return True
+
     def _updatePosition(self):
         print('inquiring pos')
         zoomInqMsg = f"8{self._channel}090447FF" # TODO
@@ -108,18 +150,23 @@ class Camera:
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
-            print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
-            # TODO should I use a regex here instead of equality?
-            # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
-            if re.compile(r"904[\da-f]ff$").match(response.hex()):
-                ack = True
-                print('response is ack')
-            # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
-            #     retries -= 1
-            #     nak = True
-            else:
-                self._sparePackets += [response]
-                print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
+            # TODO the following code crashes if timeout is reached with no message received (because `response` is `None`)
+            try:
+                print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
+                # TODO should I use a regex here instead of equality?
+                # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
+                if re.compile(r"904[\da-f]ff$").match(response.hex()):
+                    ack = True
+                    print('response is ack')
+                # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
+                #     retries -= 1
+                #     nak = True
+                else:
+                    self._sparePackets += [response]
+                    print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
+            except AttributeError:
+                ack = False
+                # there was no response
         return ack
 
     def _checkIfAwaited(self, packet):
