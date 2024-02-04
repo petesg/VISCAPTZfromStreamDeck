@@ -256,15 +256,17 @@ def callPreset_callback(preset: str) -> None:
         print(f'"{liveCam.name}" is live')
     for i in range(len(cameras)): # TODO use selectedCameras here instead
         print(f'camera {i} {("is not", "is")[cameras[i] == liveCam]} live cam')
+        pos = None
         if cameras[i] != liveCam:
-            try:
-                print(f'getting "{preset}" from {loadedConfig.Cameras[i].Assignments}')
-                pos = getattr(loadedConfig.Cameras[i].Assignments, preset)
-            except AttributeError:
-                print(f'attribute does not exist')
-                return False
-            result = cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
-            print(f'camera move {"success" if result else "failed"}')
+            if preset:
+                try:
+                    print(f'getting "{preset}" from {loadedConfig.Cameras[i].Assignments}')
+                    pos = getattr(loadedConfig.Cameras[i].Assignments, preset)
+                except AttributeError:
+                    print(f'attribute does not exist')
+                    return False
+                result = cameras[i].moveToPoint(pos.pan, pos.tilt, pos.zoom)
+                print(f'camera move {"success" if result else "failed"}')
 
             previewScene(cameras[i])
             if advancedMode:
