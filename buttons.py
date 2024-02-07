@@ -121,7 +121,7 @@ class ViscaDeck:
             if (i + 1) % self._deck.KEY_COLS == 0:
                 i += 1
             details = self._loadedConfig.Presets.__dict__[p]
-            self._renderIcon(None, "MOVE", None, i)
+            self._renderIcon("icoSwap.png", "SWAP", None, i)
             self._keyHandlers[i] = (self._presetKeyPressed_callback, None)
             i += 1
             # populate non-camera scene buttons
@@ -269,11 +269,11 @@ class ViscaDeck:
         if preset:
             p = getattr(self._loadedConfig.Presets, preset)
             print(f'RENDER rendering {key} as stdby')
-        self._renderIcon(p.icon if p else None, p.label if p else "MOVE", 'red', key)
+        self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", 'red', key)
         self._callPreset(preset)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
-            self._renderIcon(p.icon if p else None, p.label if p else "MOVE", None, key)
+            self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", None, key)
             print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
