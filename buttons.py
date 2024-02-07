@@ -117,6 +117,13 @@ class ViscaDeck:
                 self._renderIcon(details.icon, details.label, None, i)
                 self._keyHandlers[i] = (self._presetKeyPressed_callback, p)
                 i += 1
+            # non-preset transition button
+            if (i + 1) % self._deck.KEY_COLS == 0:
+                i += 1
+            details = self._loadedConfig.Presets.__dict__[p]
+            self._renderIcon("icoSwap.png", "SWAP", None, i)
+            self._keyHandlers[i] = (self._presetKeyPressed_callback, None)
+            i += 1
             # populate non-camera scene buttons
             for p in list(self._loadedConfig.ExtraScenes.__dict__):
                 if (i + 1) % self._deck.KEY_COLS == 0:
@@ -258,13 +265,15 @@ class ViscaDeck:
             return
         print(f'PRESSED')
         # TODO don't do anything if a preset is already being called (does that already take care of itself bc we're not using asynch callback and this blocks?)
-        p = getattr(self._loadedConfig.Presets, preset)
-        print(f'RENDER rendering {key} as stdby')
-        self._renderIcon(p.icon, p.label, 'red', key)
+        p = None
+        if preset:
+            p = getattr(self._loadedConfig.Presets, preset)
+            print(f'RENDER rendering {key} as stdby')
+        self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", 'red', key)
         self._callPreset(preset)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
-            self._renderIcon(p.icon, p.label, None, key)
+            self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", None, key)
             print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
@@ -323,7 +332,7 @@ class ViscaDeck:
         self._driveActive = True
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
-        if pressed:
+        if pressed and self._driveTarget:
             self._drivenCamera.moveToPoint(self._driveTarget.pan, self._driveTarget.tilt, self._driveTarget.zoom)
 
     def _moveCameraSubmitPressed_callback(self, pressed: bool, key: int, context: Any):
