@@ -30,6 +30,11 @@ class ViscaDeck:
     _driveActive: bool = False
     _advDriveContext: Any
     _driveFinishedCallback: Callable
+    _valueSelected: int = 0
+    _availableValues: list[tuple[str, str]] = [
+        ('icoBrightness_b.png', 'BRIGHTNESS'),
+        ('icoAperture_b.png', 'APERTURE')
+    ]
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
         print("-deck init")
@@ -165,6 +170,18 @@ class ViscaDeck:
             i = self._getKeyId(0, 2)
             self._renderIcon('icoZoomOut.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'OUT')
+            # plus/minus keys
+            i = self._getKeyId(2, 0)
+            self._renderIcon('icoValueUp_b.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, True)
+            i = self._getKeyId(2, 2)
+            self._renderIcon('icoValueDown_b.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
+            # value select keys
+            for j in range(min(3, len(self._availableValues))):
+                i = self._getKeyId(3, j)
+                self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+                self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
             # reset key
             i = self._getKeyId(1, 1)
             self._renderIcon('icoReset_r.png', None, None, i)
@@ -290,6 +307,25 @@ class ViscaDeck:
         if handler:
             handler(state, key, context)
         pass
+
+    def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
+        if not pressed:
+            return
+        if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
+            # TODO
+            print(('increasing' if up else 'decreasing') + ' brightness')
+        elif self._availableValues[self._valueSelected][1] == "APERTURE":
+            # TODO
+            print(('increasing' if up else 'decreasing') + ' aperture')
+
+    
+    def _moveCameraSelectValuePressed_callback(self, pressed: bool, key: int, selection: int):
+        if not pressed:
+            return
+        self._valueSelected = selection
+        for j in range(min(3, len(self._availableValues))):
+            i = self._getKeyId(3, j)
+            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
 
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
         pspeed = [0x01, 0x0A, 0x18][self._camDriveSpeed]
