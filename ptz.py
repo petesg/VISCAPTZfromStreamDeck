@@ -146,7 +146,7 @@ class Camera:
             if nak:
                 sock.send(msg)
                 nak = False
-            response = self._waitForPacket(sock, ts - curMillis()) # TODO reset timeout depending on type of NAK response
+            response = self._waitForPacket(sock, max(0, ts - curMillis())) # TODO reset timeout depending on type of NAK response
             # TODO account for replies to come in out of order (i.e. a reply to something else comes in before the ack for this one)
             # cache messages that aren't an ack away and remember to check them elsewhere? <- [doing this, mostly implemented now?]
             # OR make a list of awaited messages to check against
