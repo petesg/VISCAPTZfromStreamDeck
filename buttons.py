@@ -32,7 +32,7 @@ class ViscaDeck:
     _driveFinishedCallback: Callable
     _valueSelected: int = 0
     _availableValues: list[tuple[str, str]] = [
-        ('icoBrightness_b.png', 'BRIGHTNESS'),
+        ('icoBrightness_b.png', 'SHUTTER'),
         ('icoAperture_b.png', 'APERTURE')
     ]
     
@@ -308,16 +308,6 @@ class ViscaDeck:
             handler(state, key, context)
         pass
 
-    def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
-        if not pressed:
-            return
-        if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
-            # TODO
-            print(('increasing' if up else 'decreasing') + ' brightness')
-        elif self._availableValues[self._valueSelected][1] == "APERTURE":
-            # TODO
-            print(('increasing' if up else 'decreasing') + ' aperture')
-
     
     def _moveCameraSelectValuePressed_callback(self, pressed: bool, key: int, selection: int):
         if not pressed:
@@ -369,6 +359,18 @@ class ViscaDeck:
             raise ValueError(f'Invalid zoom direction: "{dir}"')
         self._drivenCamera.driveZoom(speed)
         self._driveActive = True
+
+    def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
+        if not pressed:
+            return
+        if self._availableValues[self._valueSelected][1] == "SHUTTER":
+            # TODO
+            print(('increasing' if up else 'decreasing') + ' shutter speed')
+            self._drivenCamera.driveShutter(up)
+        elif self._availableValues[self._valueSelected][1] == "APERTURE":
+            # TODO
+            print(('increasing' if up else 'decreasing') + ' aperture')
+            self._drivenCamera.driveAperture(up)
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed and self._driveTarget:

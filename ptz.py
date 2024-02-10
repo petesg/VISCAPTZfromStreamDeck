@@ -92,6 +92,38 @@ class Camera:
             return False
         return True
 
+    def driveShutter(self, up: bool):
+        modeStr = f'8{self._channel:01X}01043903FF'
+        driveStr = f'8{self._channel:01X}01040A0{"2" if up else "3"}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        # have to first make sure exposure mode is set to manual
+        if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
+            return False
+        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+            return False
+        self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
+        print(f'awaiting {len(self._awaiting)} packets...')
+        if not self._clearAwaiting(sock, 2000):
+            return False
+        return True
+    
+    def driveAperture(self, up: bool):
+        modeStr = f'8{self._channel:01X}01043903FF'
+        driveStr = f'8{self._channel:01X}01040B0{"2" if up else "3"}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        # have to first make sure exposure mode is set to manual
+        if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
+            return False
+        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+            return False
+        self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
+        print(f'awaiting {len(self._awaiting)} packets...')
+        if not self._clearAwaiting(sock, 2000):
+            return False
+        return True
+
     def _updatePosition(self):
         print('inquiring pos')
         zoomInqMsg = f"8{self._channel}090447FF" # TODO
