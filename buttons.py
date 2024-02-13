@@ -32,8 +32,8 @@ class ViscaDeck:
     _driveFinishedCallback: Callable
     _valueSelected: int = 0
     _availableValues: list[tuple[str, str]] = [
-        ('icoBrightness_b.png', 'SHUTTER'),
-        ('icoAperture_b.png', 'APERTURE')
+        ('icoBrightness_b.png', 'BRIGHTNESS')#,
+        # ('icoAperture_b.png', 'APERTURE')
     ]
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
@@ -363,7 +363,11 @@ class ViscaDeck:
     def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
         if not pressed:
             return
-        if self._availableValues[self._valueSelected][1] == "SHUTTER":
+        if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
+            # TODO
+            print(('increasing' if up else 'decreasing') + ' brightness')
+            self._drivenCamera.driveBrightness(up)
+        elif self._availableValues[self._valueSelected][1] == "SHUTTER":
             # TODO
             print(('increasing' if up else 'decreasing') + ' shutter speed')
             self._drivenCamera.driveShutter(up)
