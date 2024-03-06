@@ -32,8 +32,9 @@ class ViscaDeck:
     _driveFinishedCallback: Callable
     _valueSelected: int = 0
     _availableValues: list[tuple[str, str]] = [
-        ('icoBrightness_b.png', 'BRIGHTNESS')#,
-        # ('icoAperture_b.png', 'APERTURE')
+        ('icoBrightness_b.png', 'BRIGHTNESS'),
+        ('icoAperture_b.png', 'APERTURE'),
+        ('icoShutter_b.png', 'SHUTTER')
     ]
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
