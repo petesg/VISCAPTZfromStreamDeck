@@ -329,6 +329,7 @@ class ViscaDeck:
             else:
                 # button is just getting released from key press to go into drive mode
                 return
+        print(f'DRIVE {dir}')
         if dir == 'UP':
             pspeed = 0
         elif dir == 'DOWN':
