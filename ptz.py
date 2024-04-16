@@ -19,12 +19,12 @@ class Camera:
 
     def moveToPoint(self, p, t, z):
         # TODO TEMP test code without cameras attached:
-        print(f"moving to (0x{p:X}, 0x{t:X}, 0x{z:X})")
+        #print(f"moving to (0x{p:X}, 0x{t:X}, 0x{z:X})")
         # return False
         moveMsg = f"8{self._channel:01X}01060218140{(p >> 12) & 0xF:01X}0{(p >> 8) & 0xF:01X}0{(p >> 4) & 0xF:01X}0{p & 0xF:01X}0{(t >> 12) & 0xF:01X}0{(t >> 8) & 0xF:01X}0{(t >> 4) & 0xF:01X}0{t & 0xF:01X}FF"
         zoomMsg = f"8{self._channel:01X}0104470{(z >> 12) & 0xF:01X}0{(z >> 8) & 0xF:01X}0{(z >> 4) & 0xF:01X}0{z & 0xF:01X}FF"
-        print(f'move packet: "{moveMsg}"')
-        print(f'zoom packet: "{zoomMsg}"')
+        #print(f'move packet: "{moveMsg}"')
+        #print(f'zoom packet: "{zoomMsg}"')
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
@@ -32,11 +32,11 @@ class Camera:
         if not self._sendAndAck(sock, bytes.fromhex(zoomMsg), 3, 2000):
             return False
         self._awaiting += 2 * [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        print(f'awaiting {len(self._awaiting)} packets...')
+        #print(f'awaiting {len(self._awaiting)} packets...')
         if not self._clearAwaiting(sock, 10000):
             return False
         sock.close()
-        print(f'finishing with {len(self._awaiting)} awaited packets remaining')
+        #print(f'finishing with {len(self._awaiting)} awaited packets remaining')
         return True
 
     def getPosition(self):
@@ -93,73 +93,80 @@ class Camera:
         return True
 
     def driveShutter(self, up: bool):
+        print('SHUTTER ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
         driveStr = f'8{self._channel:01X}01040A0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         # have to first make sure exposure mode is set to manual
+        # TODO make this done when shutter is selected from the deck, not every time the adjust button is pressed
         if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
             return False
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
             return False
         self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        print(f'awaiting {len(self._awaiting)} packets...')
+        #print(f'awaiting {len(self._awaiting)} packets...')
         if not self._clearAwaiting(sock, 2000):
             return False
         return True
     
     def driveAperture(self, up: bool):
+        print('APERTURE ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
         driveStr = f'8{self._channel:01X}01040B0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         # have to first make sure exposure mode is set to manual
+        # TODO make this done when aperture is selected from the deck, not every time the adjust button is pressed
         if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
             return False
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
             return False
         self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        print(f'awaiting {len(self._awaiting)} packets...')
+        #print(f'awaiting {len(self._awaiting)} packets...')
         if not self._clearAwaiting(sock, 2000):
             return False
         return True
     
     def driveBrightness(self, up: bool):
+        print('BRIGHTNESS ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}0104390DFF'
         driveStr = f'8{self._channel:01X}01040D0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
-        # have to first make sure exposure mode is set to manual
+        # have to first make sure exposure mode is set to brightness
+        # TODO make this done when brightness is selected from the deck, not every time the adjust button is pressed
         if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
             return False
+        # TODO get current brightness and send direct brightness set packet instead of up/down packets which the cameras like to fight
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
             return False
         self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        print(f'awaiting {len(self._awaiting)} packets...')
+        #print(f'awaiting {len(self._awaiting)} packets...')
         if not self._clearAwaiting(sock, 2000):
             return False
         return True
 
     def _updatePosition(self):
-        print('inquiring pos')
+        #print('inquiring pos')
         zoomInqMsg = f"8{self._channel}090447FF" # TODO
         posInqMsg = f"8{self._channel}090612FF" # TODO
-        print('setting up socket')
+        #print('setting up socket')
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
-        print('sending zomm inq.')
+        #print('sending zomm inq.')
         # (apparently inquiry messages aren't ACK'ed)
         # TODO change sendAndAck to optionally not require ACK but still make sure no NAK is received
         # self._sendAndAck(sock, bytes.fromhex(zoomInqMsg), 3, 2000)
         sock.send(bytes.fromhex(zoomInqMsg)) # TODO temp, see above
-        print('sending pan/tilt inq')
+        #print('sending pan/tilt inq')
         # self._sendAndAck(sock, bytes.fromhex(posInqMsg), 3, 2000)
         sock.send(bytes.fromhex(posInqMsg)) # TODO temp, see above
-        print('awaiting responses...')
+        #print('awaiting responses...')
         self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffZoom))
         self._awaiting.append((re.compile(r"9050(0[\da-f]){8}ff$"), self._unstuffPanTilt))
         self._clearAwaiting(sock, 5000)
-        print('responses received')
+        #print('responses received')
         sock.close()
 
     def _unstuffZoom(self, packet):
@@ -186,11 +193,11 @@ class Camera:
         ts = curMillis() + timeout
         ack = False
         nak = True
-        print(f'sending "{msg.hex()}"...')
+        #print(f'sending "{msg.hex()}"...')
         i = 0
         while not ack and retries and ts > curMillis():
             i += 1
-            print(f'attempt {i}, awaiting response...')
+            #print(f'attempt {i}, awaiting response...')
             if nak:
                 sock.send(msg)
                 nak = False
@@ -200,18 +207,18 @@ class Camera:
             # OR make a list of awaited messages to check against
             # TODO the following code crashes if timeout is reached with no message received (because `response` is `None`)
             try:
-                print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
+                #print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
                 # TODO should I use a regex here instead of equality?
                 # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
                 if re.compile(r"904[\da-f]ff$").match(response.hex()):
                     ack = True
-                    print('response is ack')
+                    #print('response is ack')
                 # elif response == bytes.fromhex(f"904{self._channel}FF"): # TODO check for NAK packets (there are several types)
                 #     retries -= 1
                 #     nak = True
                 else:
                     self._sparePackets += [response]
-                    print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
+                    #print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
             except AttributeError:
                 ack = False
                 # there was no response

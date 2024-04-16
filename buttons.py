@@ -367,15 +367,15 @@ class ViscaDeck:
             return
         if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
             # TODO
-            print(('increasing' if up else 'decreasing') + ' brightness')
+            # print(('increasing' if up else 'decreasing') + ' brightness')
             self._drivenCamera.driveBrightness(up)
         elif self._availableValues[self._valueSelected][1] == "SHUTTER":
             # TODO
-            print(('increasing' if up else 'decreasing') + ' shutter speed')
+            # print(('increasing' if up else 'decreasing') + ' shutter speed')
             self._drivenCamera.driveShutter(up)
         elif self._availableValues[self._valueSelected][1] == "APERTURE":
             # TODO
-            print(('increasing' if up else 'decreasing') + ' aperture')
+            # print(('increasing' if up else 'decreasing') + ' aperture')
             self._drivenCamera.driveAperture(up)
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
