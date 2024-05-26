@@ -29,10 +29,12 @@ def script_load(settings):
     global configPath
     global loadSuccess
     global delayDur
+    global advancedMode
     print("(load)")
 
     configPath = obs.obs_data_get_string(settings, "picker_configPath")
     delayDur = obs.obs_data_get_int(settings, "picker_delay")
+    advancedMode = obs.obs_data_get_bool(settings, "picker_advMode")
     loadSuccess = configureMain()
     print(f'delaydur is {delayDur}')
     print(f"config loaded: {loadedConfig}")
@@ -66,7 +68,7 @@ def script_defaults(settings):
     importlib.reload(ptz)
     importlib.reload(buttons)
     print("local modules reloaded")
-    obs.obs_data_set_default_bool(settings, "picker_advMode", False)
+    # obs.obs_data_set_default_bool(settings, "picker_advMode", False)
 
 # runs any time properties are changed by the user
 def script_update(settings):

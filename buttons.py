@@ -30,6 +30,12 @@ class ViscaDeck:
     _driveActive: bool = False
     _advDriveContext: Any
     _driveFinishedCallback: Callable
+    _valueSelected: int = 0
+    _availableValues: list[tuple[str, str]] = [
+        ('icoBrightness_b.png', 'BRIGHTNESS'),
+        ('icoAperture_b.png', 'APERTURE'),
+        ('icoShutter_b.png', 'SHUTTER')
+    ]
     
     def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
         print("-deck init")
@@ -146,41 +152,56 @@ class ViscaDeck:
             # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
         elif page == "DRIVE":
             # arrow keys
-            i = self._getKeyId(2, 0)
+            i = self._getKeyId(1, 0)
             self._renderIcon('icoUpArrow.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'UP')
-            i = self._getKeyId(1, 1)
+            i = self._getKeyId(0, 1)
             self._renderIcon('icoLeftArrow.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'LEFT')
-            i = self._getKeyId(3, 1)
+            i = self._getKeyId(2, 1)
             self._renderIcon('icoRightArrow.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'RIGHT')
-            i = self._getKeyId(2, 2)
+            i = self._getKeyId(1, 2)
             self._renderIcon('icoDownArrow.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'DOWN')
             # zoom keys
-            i = self._getKeyId(1, 0)
+            i = self._getKeyId(0, 0)
             self._renderIcon('icoZoomIn.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'IN')
-            i = self._getKeyId(1, 2)
+            i = self._getKeyId(0, 2)
             self._renderIcon('icoZoomOut.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'OUT')
+            # plus/minus keys
+            i = self._getKeyId(2, 0)
+            self._renderIcon('icoValueUp_b.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, True)
+            i = self._getKeyId(2, 2)
+            self._renderIcon('icoValueDown_b.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
+            # value select keys
+            for j in range(min(3, len(self._availableValues))):
+                i = self._getKeyId(3, j)
+                self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+                self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
             # reset key
-            i = self._getKeyId(2, 1)
+            i = self._getKeyId(1, 1)
             self._renderIcon('icoReset_r.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraResetPressed_callback, None)
             # submit/cancel keys
-            i = self._getKeyId(3, 0)
+            i = self._getKeyId(4, 0)
             self._renderIcon('icoCheck_g.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraSubmitPressed_callback, None)
-            i = self._getKeyId(3, 2)
+            i = self._getKeyId(4, 1)
             self._renderIcon('icoBack_r.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraCancelPressed_callback, None)
             # speed keys
-            for j in range(3):
-                i = self._getKeyId(0, j)
-                self._renderIcon(f'icoSpeed{j}.png', None, 'white' if j == self._camDriveSpeed else None, i)
-                self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, j)
+            # for j in range(3):
+                # i = self._getKeyId(0, j)
+                # self._renderIcon(f'icoSpeed{j}.png', None, 'white' if j == self._camDriveSpeed else None, i)
+                # self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, j)
+            i = self._getKeyId(4, 2)
+            self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
         else:
             # TODO error, bad page name
             pass
@@ -288,6 +309,15 @@ class ViscaDeck:
             handler(state, key, context)
         pass
 
+    
+    def _moveCameraSelectValuePressed_callback(self, pressed: bool, key: int, selection: int):
+        if not pressed:
+            return
+        self._valueSelected = selection
+        for j in range(min(3, len(self._availableValues))):
+            i = self._getKeyId(3, j)
+            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
         pspeed = [0x01, 0x0A, 0x18][self._camDriveSpeed]
         tspeed = [0x01, 0x08, 0x14][self._camDriveSpeed]
@@ -299,6 +329,7 @@ class ViscaDeck:
             else:
                 # button is just getting released from key press to go into drive mode
                 return
+        print(f'DRIVE {dir}')
         if dir == 'UP':
             pspeed = 0
         elif dir == 'DOWN':
@@ -331,6 +362,22 @@ class ViscaDeck:
         self._drivenCamera.driveZoom(speed)
         self._driveActive = True
 
+    def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
+        if not pressed:
+            return
+        if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
+            # TODO
+            # print(('increasing' if up else 'decreasing') + ' brightness')
+            self._drivenCamera.driveBrightness(up)
+        elif self._availableValues[self._valueSelected][1] == "SHUTTER":
+            # TODO
+            # print(('increasing' if up else 'decreasing') + ' shutter speed')
+            self._drivenCamera.driveShutter(up)
+        elif self._availableValues[self._valueSelected][1] == "APERTURE":
+            # TODO
+            # print(('increasing' if up else 'decreasing') + ' aperture')
+            self._drivenCamera.driveAperture(up)
+
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed and self._driveTarget:
             self._drivenCamera.moveToPoint(self._driveTarget.pan, self._driveTarget.tilt, self._driveTarget.zoom)
@@ -346,13 +393,16 @@ class ViscaDeck:
             return
         self._exitAdvancedTransition()
 
-    def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, speed: int):
+    def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, context: Any):
         if not pressed:
             return
-        for j in range(3):
-            i = self._getKeyId(0, j)
-            self._renderIcon(f'icoSpeed{j}.png', None, 'white' if key == i else None, i)
-        self._camDriveSpeed = speed
+        self._camDriveSpeed += 1
+        self._camDriveSpeed %= 3
+        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, self._getKeyId(4, 2))
+        # for j in range(3):
+        #     i = self._getKeyId(0, j)
+        #     self._renderIcon(f'icoSpeed{j}.png', None, 'white' if key == i else None, i)
+        # self._camDriveSpeed = speed
 
 # EXAMPLE CODE
 # ------------
