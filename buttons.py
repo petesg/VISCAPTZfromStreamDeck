@@ -23,6 +23,7 @@ class ViscaDeck:
     _callImmediateScene: Callable[[str], None]
     _toggleStream: Callable[[None], bool]
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
+    _confirmHandler: Callable[[None], None]
     _selectedCams: list[str]
     _holdTimer: int = 0
     _camDriveSpeed: int = 1
@@ -202,6 +203,8 @@ class ViscaDeck:
             i = self._getKeyId(4, 2)
             self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
+        elif page == "CONFIRM":
+            
         else:
             # TODO error, bad page name
             pass
@@ -242,6 +245,20 @@ class ViscaDeck:
             draw.multiline_text((image.width / 2, 6 if iconFile else 36), '\n'.join(lines), 'white', font, "ma" if iconFile else "mm")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
+    
+    def _renderLargeText(self, text:str, col:int, row:int, cols:int, rows:int, fontHt:float, textColor:str='white', backColor:str='black'):
+        # clamp bounds to available area
+        if col + cols > self._deck.KEY_COLS:
+            cols = self._deck.KEY_COLS - col
+        if row + rows > self._deck.KEY_ROWS:
+            rows = self._deck.KEY_ROWS - row
+
+        # create empty image of the correct size
+        rawImg = Image.new("RGB", (self._deck.KEY_PIXEL_WIDTH * cols, self._deck.KEY_PIXEL_HEIGHT * rows), backColor)
+        draw = ImageDraw.Draw(rawImg)
+
+        
+        
 
     def _getKeyId(self, col: int, row: int):
         if col >= self._deck.KEY_COLS:
