@@ -246,18 +246,22 @@ class ViscaDeck:
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
     
-    def _renderLargeText(self, text:str, col:int, row:int, cols:int, rows:int, fontHt:float, textColor:str='white', backColor:str='black'):
+    def _renderLargeText(self, text:str, col:int, row:int, cols:int, rows:int, fontHt:float, textColor:str='white', backColor:str='black', kerf:int=0):
         # clamp bounds to available area
         if col + cols > self._deck.KEY_COLS:
             cols = self._deck.KEY_COLS - col
         if row + rows > self._deck.KEY_ROWS:
             rows = self._deck.KEY_ROWS - row
 
-        # create empty image of the correct size
-        rawImg = Image.new("RGB", (self._deck.KEY_PIXEL_WIDTH * cols, self._deck.KEY_PIXEL_HEIGHT * rows), backColor)
+        # create empty image of the correct size and draw the text
+        canvasWd = self._deck.KEY_PIXEL_WIDTH * cols + kerf * (cols - 1)
+        canvasHt = self._deck.KEY_PIXEL_HEIGHT * rows + kerf * (rows - 1)
+        rawImg = Image.new("RGB", (canvasWd, canvasHt), backColor)
         draw = ImageDraw.Draw(rawImg)
+        font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), fontHt)
+        draw.text((canvasWd / 2, canvasHt / 2), text, font=font, anchor='mm', align='center', stroke_fill=textColor)
 
-        
+        # chop into tiles
         
 
     def _getKeyId(self, col: int, row: int):
