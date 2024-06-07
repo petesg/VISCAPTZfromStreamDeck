@@ -442,12 +442,16 @@ class ViscaDeck:
     def _moveCameraSubmitPressed_callback(self, pressed: bool, key: int, context: Any):
         if not pressed:
             return
+        self._drivenCamera.driveZoom(0)
+        self._drivenCamera.drivePanTilt(0, 0)
         self._driveFinishedCallback(self._advDriveContext)
         self._exitAdvancedTransition()
 
     def _moveCameraCancelPressed_callback(self, pressed: bool, key: int, context: Any):
         if not pressed:
             return
+        self._drivenCamera.driveZoom(0)
+        self._drivenCamera.drivePanTilt(0, 0)
         self._exitAdvancedTransition()
 
     def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, context: Any):
