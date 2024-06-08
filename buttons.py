@@ -36,7 +36,7 @@ class ViscaDeck:
     _confirmPageHandler: Callable[[bool], None]
     _confirmPageContext: dict[str, Any] = {}
     _confirmPageMessage: str
-    _selectedCam: ptz.Camera
+    _selectedCam: ptz.Camera = None # TODO this will cause problems if you try to do something before selecting a camera, needs to get fixed by having script_update() set this the first time it runs
     _holdTimer: int = 0
     _camDriveSpeed: int = 1
     _drivenCamera: ptz.Camera = None
@@ -102,6 +102,9 @@ class ViscaDeck:
 
         # Initialize handler list
         self._keyHandlers = [(None, None)] * self._deck.key_count()
+
+        # Default the selected camera to something
+        self._selectedCam = self._obs.getFreeCameras()[0]
 
         # Set initial key images.
         self._drawDeck("HOME")
@@ -380,7 +383,7 @@ class ViscaDeck:
             p = getattr(self._loadedConfig.Presets, preset)
             print(f'RENDER rendering {key} as stdby')
         self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", 'red', key)
-        self._obs.callPreset(preset)
+        self._obs.callPreset(preset, self._selectedCam)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
             self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", None, key)

@@ -197,13 +197,17 @@ def configureMain():
 
 def getLiveCamera():
     # print('getting live cam')
+    print(f'fetching live camera...')
     current_scene = obs.obs_frontend_get_current_scene()
     currentScene = obs.obs_source_get_name(current_scene)
+    print(f'currentScene is {currentScene}')
     # print(f'"{currentScene}" is live')
     # currentScene = obs.obs_scene_from_source(current_scene)
     for camera in cameras:
         # print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
+        print(f'checking {camera.name} with scene {camera.sceneName}')
         if camera.sceneName == currentScene:
+            print(f'camera {camera.name} is live')
             return camera
     return None # TODO maybe throw an exception???
 
@@ -258,7 +262,10 @@ def advModeChanged_callback(props, prop, settings):
 
 def findInactiveCams():
     cams = cameras.copy()
-    cams.remove(getLiveCamera())
+    print(f'finding avalaible cameras... all cameras: {",".join([c.name for c in cams])}')
+    liveCam = getLiveCamera()
+    if liveCam:
+        cams.remove(liveCam)
     return cams
 
 def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
