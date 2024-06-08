@@ -6,8 +6,9 @@ from __time import curMillis
 
 class Camera:
 
-    def __init__(self, ip, port, channel, name) -> None:
+    def __init__(self, ip, port, channel, name, id) -> None:
         self.name = name
+        self.id = id
         self._ip = ip
         self._port = port
         self._channel = channel

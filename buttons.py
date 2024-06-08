@@ -14,21 +14,29 @@ from StreamDeck.Devices.StreamDeck import StreamDeck
 import json
 from types import SimpleNamespace
 
+class ObsDeckEvents:
+    callPreset: Callable[[str], None]
+    callImmediateScene: Callable[[str], None]
+    startStopStream: Callable[[bool], bool]
+    getStreamStatus: Callable[[None], bool]
+    getFreeCameras: Callable[[None], list[ptz.Camera]]
+
 class ViscaDeck:
 
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
     _currentPage: str = 'HOME'
     _lastPage: str
-    _callPreset_delegate: Callable[[str], None]
-    _callImmediateScene_delegate: Callable[[str], None]
-    _startStopStream_delegate: Callable[[bool], bool]
-    _getStreamStatus_delegate: Callable[[None], bool]
+    # _obs.callPreset: Callable[[str], None]
+    # _obs.callImmediateScene: Callable[[str], None]
+    # _obs.startStopStream: Callable[[bool], bool]
+    # _obs.getStreamStatus: Callable[[None], bool]
+    _obs: ObsDeckEvents
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _confirmPageHandler: Callable[[bool], None]
     _confirmPageContext: dict[str, Any] = {}
     _confirmPageMessage: str
-    _selectedCams: list[str]
+    _selectedCam: ptz.Camera
     _holdTimer: int = 0
     _camDriveSpeed: int = 1
     _drivenCamera: ptz.Camera = None
@@ -42,16 +50,17 @@ class ViscaDeck:
         ('icoShutter_b.png', 'SHUTTER')
     ]
     
-    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], getStreamCallback: Callable[[None], bool], streamCallback: Callable[[bool], bool]):
+    def __init__(self, loadedConfig: SimpleNamespace, callbacks: ObsDeckEvents): #presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], getStreamCallback: Callable[[None], bool], streamCallback: Callable[[bool], bool]):
         print("-deck init")
         # print(loadedConfig)
         self._config = loadedConfig
-        self._callPreset_delegate = presetCallback
-        self._startStopStream_delegate = streamCallback
-        self._getStreamStatus_delegate = getStreamCallback
-        self._callImmediateScene_delegate = sceneCallback
+        # self._obs.callPreset = presetCallback
+        # self._obs.startStopStream = streamCallback
+        # self._obs.getStreamStatus = getStreamCallback
+        # self._obs.callImmediateScene = sceneCallback
+        self._obs = callbacks
         self._loadedConfig = loadedConfig
-        self._selectedCams = ["foo", "bar"] # TODO implement this
+        # self._selectedCams = ["foo", "bar"] # TODO implement this
 
         self._connectSurface()
     
@@ -146,19 +155,20 @@ class ViscaDeck:
                 i += 1
             # stream button
             i = self._deck.KEY_COLS - 1
-            if self._getStreamStatus_delegate():
+            if self._obs.getStreamStatus():
                 self._renderIcon(None, "END\nSTREAM", 'green', i)
             else:
                 self._renderIcon(None, "START\nSTREAM", 'red', i)
             self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
             # camera button
             i = self._deck.key_count() - 1
-            self._renderIcon("icoCamera.png", ', '.join(self._selectedCams), None, i)
+            self._renderIcon("icoCamera.png", self._selectedCam.name, None, i)
             self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
             # edit button
             # i = self._deck.KEY_COLS * 2 - 1
             # self._renderIcon("icoEdit.png", "", None, i)
             # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
+
         elif page == "DRIVE":
             # arrow keys
             i = self._getKeyId(1, 0)
@@ -211,6 +221,7 @@ class ViscaDeck:
             i = self._getKeyId(4, 2)
             self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
+
         elif page == "CONFIRM":
             # message
             self._renderLargeText(self._confirmPageMessage, 0, 0, 5, 1, 32, kerf=10)
@@ -222,10 +233,28 @@ class ViscaDeck:
             i = self._getKeyId(3, 1)
             self._renderIcon('icoCancel_r.png', None, None, i)
             self._keyHandlers[i] = (self._confirmHandler, False)
+
+        elif page == 'CAMSELECT':
+            # title
+            self._renderLargeText('SELECT CAMERA', 0, 0, 5, 1, 64)
+            # camera buttons
+            availableCams = self._obs.getFreeCameras()
+            j = 0
+            for cam in availableCams:
+                i = self._getKeyId(j, 1)
+                self._renderIcon(None, cam.name, 'white' if cam == self._selectedCam else None, i)
+                self._keyHandlers[i] = (self._camSelectPressed_callback, cam)
+                j += 1
+            # back button
+            i = self._getKeyId(0, 2)
+            self._renderIcon('icoBack.png', None, None, i)
+            self._keyHandlers[i] = (self._goToPagePressed_callback, 'HOME')
+
         else:
-            # TODO error, bad page name
-            pass
-        self._lastPage = self._currentPage
+            raise ValueError(f'Bad page name: "{page}".')
+
+        if self._currentPage != page:
+            self._lastPage = self._currentPage
         self._currentPage = page
 
     def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
@@ -310,11 +339,11 @@ class ViscaDeck:
             return
         if confirmed:
             startStream = self._confirmPageContext['STREAM']
-            self._startStopStream_delegate(startStream)
+            self._obs.startStopStream(startStream)
         self._drawDeck('HOME')
 
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
-        # TODO
+        self._drawDeck('CAMSELECT')
         pass
 
     def _editPresetsPressed_callback(self, state: bool, key: int, context: Any) -> None:
@@ -323,7 +352,7 @@ class ViscaDeck:
 
     def _streamKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         if state:
-            streamIsOn = self._getStreamStatus_delegate()
+            streamIsOn = self._obs.getStreamStatus()
             self._confirmPageContext['STREAM'] = not streamIsOn
             self._confirmHandler = self._startStopStream
             self._confirmPageMessage = ('STOP' if streamIsOn else 'START') + "     STREAM?"
@@ -351,7 +380,7 @@ class ViscaDeck:
             p = getattr(self._loadedConfig.Presets, preset)
             print(f'RENDER rendering {key} as stdby')
         self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", 'red', key)
-        self._callPreset_delegate(preset)
+        self._obs.callPreset(preset)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
             self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", None, key)
@@ -361,7 +390,7 @@ class ViscaDeck:
     def _sceneKeyPressed_callback(self, state: bool, key: int, scene: str) -> None:
         if not state:
             return
-        self._callImmediateScene_delegate(scene)
+        self._obs.callImmediateScene(scene)
 
     def _globalKeyPressed_callback(self, deck, key, state):
         (handler, context) = self._keyHandlers[key]
@@ -463,10 +492,18 @@ class ViscaDeck:
         self._camDriveSpeed += 1
         self._camDriveSpeed %= 3
         self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, self._getKeyId(4, 2))
-        # for j in range(3):
-        #     i = self._getKeyId(0, j)
-        #     self._renderIcon(f'icoSpeed{j}.png', None, 'white' if key == i else None, i)
-        # self._camDriveSpeed = speed
+
+    def _camSelectPressed_callback(self, pressed: bool, key: int, cam: ptz.Camera):
+        if not pressed:
+            return
+        self._selectedCam = cam
+        self._drawDeck('CAMSELECT')
+
+
+    def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
+        if not pressed:
+            return
+        self._drawDeck(page)
 
 # EXAMPLE CODE
 # ------------
