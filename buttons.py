@@ -18,7 +18,7 @@ class ViscaDeck:
 
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
-    _currentPage: str
+    _currentPage: str = 'HOME'
     _lastPage: str
     _callPreset_delegate: Callable[[str], None]
     _callImmediateScene_delegate: Callable[[str], None]
@@ -26,7 +26,7 @@ class ViscaDeck:
     _getStreamStatus_delegate: Callable[[None], bool]
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
     _confirmPageHandler: Callable[[bool], None]
-    _confirmPageContext: dict[str, Any]
+    _confirmPageContext: dict[str, Any] = {}
     _confirmPageMessage: str
     _selectedCams: list[str]
     _holdTimer: int = 0
@@ -213,7 +213,7 @@ class ViscaDeck:
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
         elif page == "CONFIRM":
             # message
-            self._renderLargeText(self._confirmPageMessage, 0, 0, 5, 1, 64)
+            self._renderLargeText(self._confirmPageMessage, 0, 0, 5, 1, 32, kerf=10)
             # yes key
             i = self._getKeyId(1, 1)
             self._renderIcon('icoCheck_g.png', None, None, i)
@@ -288,7 +288,7 @@ class ViscaDeck:
                 x2 = x1 + self._deck.KEY_PIXEL_WIDTH
                 y2 = y1 + self._deck.KEY_PIXEL_HEIGHT
                 tile = draw._image.crop((x1, y1, x2, y2))
-                self._deck.set_key_image(key, tile)
+                self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, tile))
 
     def _getKeyId(self, col: int, row: int):
         if col >= self._deck.KEY_COLS:
@@ -305,7 +305,9 @@ class ViscaDeck:
         self._driveActive = False
         self._drawDeck("HOME")
     
-    def _startStopStream(self, confirmed) -> None:
+    def _startStopStream(self, state: bool, key: int, confirmed: bool) -> None:
+        if not state:
+            return
         if confirmed:
             startStream = self._confirmPageContext['STREAM']
             self._startStopStream_delegate(startStream)
@@ -324,6 +326,7 @@ class ViscaDeck:
             streamIsOn = self._getStreamStatus_delegate()
             self._confirmPageContext['STREAM'] = not streamIsOn
             self._confirmHandler = self._startStopStream
+            self._confirmPageMessage = ('STOP' if streamIsOn else 'START') + "     STREAM?"
             self._drawDeck('CONFIRM')
         #     if not self._holdTimer:
         #         self._holdTimer = curMillis() + 2000
