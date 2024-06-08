@@ -18,11 +18,16 @@ class ViscaDeck:
 
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
-    _currentPage: str
-    _callPreset: Callable[[str], None]
-    _callImmediateScene: Callable[[str], None]
-    _toggleStream: Callable[[None], bool]
+    _currentPage: str = 'HOME'
+    _lastPage: str
+    _callPreset_delegate: Callable[[str], None]
+    _callImmediateScene_delegate: Callable[[str], None]
+    _startStopStream_delegate: Callable[[bool], bool]
+    _getStreamStatus_delegate: Callable[[None], bool]
     _keyHandlers: list[tuple[Callable[[bool, int, Any], None], Any]]
+    _confirmPageHandler: Callable[[bool], None]
+    _confirmPageContext: dict[str, Any] = {}
+    _confirmPageMessage: str
     _selectedCams: list[str]
     _holdTimer: int = 0
     _camDriveSpeed: int = 1
@@ -37,13 +42,14 @@ class ViscaDeck:
         ('icoShutter_b.png', 'SHUTTER')
     ]
     
-    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], streamCallback: Callable[[None], bool]):
+    def __init__(self, loadedConfig: SimpleNamespace, presetCallback: Callable[[str], None], sceneCallback: Callable[[str], None], getStreamCallback: Callable[[None], bool], streamCallback: Callable[[bool], bool]):
         print("-deck init")
         # print(loadedConfig)
         self._config = loadedConfig
-        self._callPreset = presetCallback
-        self._toggleStream = streamCallback
-        self._callImmediateScene = sceneCallback
+        self._callPreset_delegate = presetCallback
+        self._startStopStream_delegate = streamCallback
+        self._getStreamStatus_delegate = getStreamCallback
+        self._callImmediateScene_delegate = sceneCallback
         self._loadedConfig = loadedConfig
         self._selectedCams = ["foo", "bar"] # TODO implement this
 
@@ -140,7 +146,10 @@ class ViscaDeck:
                 i += 1
             # stream button
             i = self._deck.KEY_COLS - 1
-            self._renderIcon(None, "START\nSTREAM", 'red', i)
+            if self._getStreamStatus_delegate():
+                self._renderIcon(None, "END\nSTREAM", 'green', i)
+            else:
+                self._renderIcon(None, "START\nSTREAM", 'red', i)
             self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
             # camera button
             i = self._deck.key_count() - 1
@@ -202,9 +211,21 @@ class ViscaDeck:
             i = self._getKeyId(4, 2)
             self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
             self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
+        elif page == "CONFIRM":
+            # message
+            self._renderLargeText(self._confirmPageMessage, 0, 0, 5, 1, 32, kerf=10)
+            # yes key
+            i = self._getKeyId(1, 1)
+            self._renderIcon('icoCheck_g.png', None, None, i)
+            self._keyHandlers[i] = (self._confirmHandler, True)
+            # no key
+            i = self._getKeyId(3, 1)
+            self._renderIcon('icoCancel_r.png', None, None, i)
+            self._keyHandlers[i] = (self._confirmHandler, False)
         else:
             # TODO error, bad page name
             pass
+        self._lastPage = self._currentPage
         self._currentPage = page
 
     def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
@@ -242,6 +263,32 @@ class ViscaDeck:
             draw.multiline_text((image.width / 2, 6 if iconFile else 36), '\n'.join(lines), 'white', font, "ma" if iconFile else "mm")
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
+    
+    def _renderLargeText(self, text:str, col:int, row:int, cols:int, rows:int, fontHt:float, textColor:str='white', backColor:str='black', kerf:int=0):
+        # clamp bounds to available area
+        if col + cols > self._deck.KEY_COLS:
+            cols = self._deck.KEY_COLS - col
+        if row + rows > self._deck.KEY_ROWS:
+            rows = self._deck.KEY_ROWS - row
+
+        # create empty image of the correct size and draw the text
+        canvasWd = self._deck.KEY_PIXEL_WIDTH * cols + kerf * (cols - 1)
+        canvasHt = self._deck.KEY_PIXEL_HEIGHT * rows + kerf * (rows - 1)
+        rawImg = Image.new("RGB", (canvasWd, canvasHt), backColor)
+        draw = ImageDraw.Draw(rawImg)
+        font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), fontHt)
+        draw.text((canvasWd / 2, canvasHt / 2), text, font=font, anchor='mm', align='center', stroke_fill=textColor)
+
+        # chop into tiles and assign to keys
+        for j in range(rows):
+            for i in range(cols):
+                key = self._getKeyId(i, j)
+                x1 = i * (self._deck.KEY_PIXEL_WIDTH + kerf)
+                y1 = j * (self._deck.KEY_PIXEL_HEIGHT + kerf)
+                x2 = x1 + self._deck.KEY_PIXEL_WIDTH
+                y2 = y1 + self._deck.KEY_PIXEL_HEIGHT
+                tile = draw._image.crop((x1, y1, x2, y2))
+                self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, tile))
 
     def _getKeyId(self, col: int, row: int):
         if col >= self._deck.KEY_COLS:
@@ -257,6 +304,14 @@ class ViscaDeck:
         self._advDriveContext = None
         self._driveActive = False
         self._drawDeck("HOME")
+    
+    def _startStopStream(self, state: bool, key: int, confirmed: bool) -> None:
+        if not state:
+            return
+        if confirmed:
+            startStream = self._confirmPageContext['STREAM']
+            self._startStopStream_delegate(startStream)
+        self._drawDeck('HOME')
 
     def _camsKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         # TODO
@@ -268,16 +323,21 @@ class ViscaDeck:
 
     def _streamKeyPressed_callback(self, state: bool, key: int, context: Any) -> None:
         if state:
+            streamIsOn = self._getStreamStatus_delegate()
+            self._confirmPageContext['STREAM'] = not streamIsOn
+            self._confirmHandler = self._startStopStream
+            self._confirmPageMessage = ('STOP' if streamIsOn else 'START') + "     STREAM?"
+            self._drawDeck('CONFIRM')
         #     if not self._holdTimer:
         #         self._holdTimer = curMillis() + 2000
         #         # TODO render intermediate border color
         #     return
         # if not state and self._holdTimer and curMillis() > self._holdTimer:
-            print('stream button pressed')
-            if self._toggleStream():
-                self._renderIcon(None, "END\nSTREAM", 'green', key)
-            else:
-                self._renderIcon(None, "START\nSTREAM", 'red', key)
+            # print('stream button pressed')
+            # if self._startStopStream():
+            #     self._renderIcon(None, "END\nSTREAM", 'green', key)
+            # else:
+            #     self._renderIcon(None, "START\nSTREAM", 'red', key)
             # self._holdTimer = 0
 
     def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
@@ -291,7 +351,7 @@ class ViscaDeck:
             p = getattr(self._loadedConfig.Presets, preset)
             print(f'RENDER rendering {key} as stdby')
         self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", 'red', key)
-        self._callPreset(preset)
+        self._callPreset_delegate(preset)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
             self._renderIcon(p.icon if p else "icoSwap.png", p.label if p else "SWAP", None, key)
@@ -301,7 +361,7 @@ class ViscaDeck:
     def _sceneKeyPressed_callback(self, state: bool, key: int, scene: str) -> None:
         if not state:
             return
-        self._callImmediateScene(scene)
+        self._callImmediateScene_delegate(scene)
 
     def _globalKeyPressed_callback(self, deck, key, state):
         (handler, context) = self._keyHandlers[key]
@@ -385,12 +445,16 @@ class ViscaDeck:
     def _moveCameraSubmitPressed_callback(self, pressed: bool, key: int, context: Any):
         if not pressed:
             return
+        self._drivenCamera.driveZoom(0)
+        self._drivenCamera.drivePanTilt(0, 0)
         self._driveFinishedCallback(self._advDriveContext)
         self._exitAdvancedTransition()
 
     def _moveCameraCancelPressed_callback(self, pressed: bool, key: int, context: Any):
         if not pressed:
             return
+        self._drivenCamera.driveZoom(0)
+        self._drivenCamera.drivePanTilt(0, 0)
         self._exitAdvancedTransition()
 
     def _moveCameraSpeedPressed_callback(self, pressed: bool, key: int, context: Any):

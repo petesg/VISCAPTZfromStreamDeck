@@ -185,7 +185,7 @@ def configureMain():
         return False
 
     # setup streamdeck
-    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback, callScene_callback, toggleStream_callback)
+    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback, callScene_callback, obs.obs_frontend_streaming_active, streamOnOff_callback)
 
     return True
 
@@ -290,17 +290,15 @@ def callScene_callback(page: str):
         if name == otherScenes[page]:
             obs.obs_frontend_set_current_scene(scene)
 
-def toggleStream_callback() -> bool:
-    if not obs.obs_frontend_streaming_active():
+def streamOnOff_callback(start: bool) -> bool:
+    if start is None:
+        pass
+    elif start and not obs.obs_frontend_streaming_active():
         obs.obs_frontend_streaming_start()
         print('starting stream')
-        # obs.obs_frontend_recording_start()
-        return True
-    else:
-        obs.obs_frontend_streaming_stop()
-        print('stopping stream')
-        # obs.obs_frontend_recording_stop()
-        return False
+    elif not start and obs.obs_frontend_streaming_active():
+        print('stream was already on')
+    return obs.obs_frontend_streaming_active()
 
 # def testNearButton_callback(props, prop):
 #     print("dbg hit near")
