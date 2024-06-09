@@ -344,7 +344,8 @@ def streamOnOff_callback(start: bool) -> bool:
         obs.obs_frontend_streaming_start()
         print('starting stream')
     elif not start and obs.obs_frontend_streaming_active():
-        print('stream was already on')
+        obs.obs_frontend_streaming_stop()
+        print('stopping stream')
     return obs.obs_frontend_streaming_active()
 
 # def testNearButton_callback(props, prop):

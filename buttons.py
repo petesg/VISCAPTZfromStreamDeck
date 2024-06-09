@@ -246,7 +246,7 @@ class ViscaDeck:
 
         elif page == 'CAMSELECT':
             # title
-            self._renderLargeText('SELECT CAMERA', 0, 0, 5, 1, 64)
+            self._renderLargeText('SELECT CAMERA', 0, 0, 5, 1, 32, kerf=10)
             # camera buttons
             availableCams = self._obs.getFreeCameras()
             j = 0
