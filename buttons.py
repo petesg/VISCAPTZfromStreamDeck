@@ -20,6 +20,7 @@ class ObsDeckEvents:
     startStopStream: Callable[[bool], bool]
     getStreamStatus: Callable[[None], bool]
     getFreeCameras: Callable[[None], list[ptz.Camera]]
+    setPreviewCamera: Callable[[ptz.Camera], None]
 
 class ViscaDeck:
 
@@ -507,7 +508,7 @@ class ViscaDeck:
             return
         self._selectedCam = cam
         self._drawDeck('CAMSELECT')
-
+        self._obs.setPreviewCamera(cam)
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
         if not pressed:

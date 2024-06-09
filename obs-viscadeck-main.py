@@ -191,6 +191,7 @@ def configureMain():
     callbacks.getStreamStatus = obs.obs_frontend_streaming_active
     callbacks.startStopStream = streamOnOff_callback
     callbacks.getFreeCameras = findInactiveCams
+    callbacks.setPreviewCamera = previewScene
     deck = buttons.ViscaDeck(loadedConfig, callbacks)
 
     return True
@@ -279,15 +280,17 @@ def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
         # TODO handle this case...
         return False
     
-    try:
-        print(f'getting "{preset}" from {loadedConfig.Cameras[camera.id].Assignments}')
-        pos = getattr(loadedConfig.Cameras[camera.id].Assignments, preset)
-    except AttributeError:
-        print(f'"{camera.name}" does not have preset "{preset}"')
-        return False
-    
-    result = camera.moveToPoint(pos.pan, pos.tilt, pos.zoom)
-    print(f'camera move {"success" if result else "failed"}')
+    if preset:
+        try:
+            print(f'getting "{preset}" from {loadedConfig.Cameras[camera.id].Assignments}')
+            pos = getattr(loadedConfig.Cameras[camera.id].Assignments, preset)
+        except AttributeError:
+            print(f'"{camera.name}" does not have preset "{preset}"')
+            return False
+        
+        result = camera.moveToPoint(pos.pan, pos.tilt, pos.zoom)
+        print(f'camera move {"success" if result else "failed"}')
+
     previewScene(camera)
     if advancedMode:
         deck.startAdvancedTransition(camera, pos, finishAdvancedTransition_callback, cameras.index(camera))
