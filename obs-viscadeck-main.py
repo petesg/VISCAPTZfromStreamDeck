@@ -212,10 +212,12 @@ def getLiveCamera():
     return None # TODO maybe throw an exception???
 
 def transitionScene(cam):
+    global deck
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == cam.sceneName:
+            deck.setSelectedCamera(getLiveCamera())
             obs.obs_frontend_set_current_scene(scene)
 
 def previewScene(cam):

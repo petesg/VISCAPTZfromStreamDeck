@@ -73,6 +73,12 @@ class ViscaDeck:
         self._drivenCamera = camera
         self._driveTarget = position
         self._driveFinishedCallback = finishedCallback
+    
+    def setSelectedCamera(self, cam: ptz.Camera) -> None:
+        if cam is None:
+            # TODO handle this
+            return
+        self._selectedCam = cam
 
     def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
