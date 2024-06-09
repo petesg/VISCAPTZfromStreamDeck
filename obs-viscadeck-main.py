@@ -280,6 +280,7 @@ def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
         # TODO handle this case...
         return False
     
+    pos = None
     if preset:
         try:
             print(f'getting "{preset}" from {loadedConfig.Cameras[camera.id].Assignments}')

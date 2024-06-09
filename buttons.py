@@ -172,7 +172,7 @@ class ViscaDeck:
             self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
             # camera button
             i = self._deck.key_count() - 1
-            self._renderIcon("icoCamera.png", self._selectedCam.name, None, i)
+            self._renderIcon("icoCamera.png", self._selectedCam.name.upper(), None, i)
             self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
             # edit button
             # i = self._deck.KEY_COLS * 2 - 1
