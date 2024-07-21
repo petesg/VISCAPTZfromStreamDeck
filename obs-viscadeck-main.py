@@ -177,7 +177,7 @@ def configureMain():
     try:
         print(f"{len(loadedConfig.Cameras)} cameras & {len(loadedConfig.Presets.__dict__)} presets detected")
         for camera in loadedConfig.Cameras:
-            newCam = ptz.Camera(camera.ip, camera.port, camera.channel, camera.name)
+            newCam = ptz.Camera(camera.ip, camera.port, camera.channel, camera.name, len(cameras))
             newCam.sceneName = "" # add property to hold scene name
             cameras.append(newCam)
         print(f"{len(cameras)} cameras loaded")
@@ -185,27 +185,40 @@ def configureMain():
         return False
 
     # setup streamdeck
-    deck = buttons.ViscaDeck(loadedConfig, callPreset_callback, callScene_callback, obs.obs_frontend_streaming_active, streamOnOff_callback)
+    callbacks = buttons.ObsDeckEvents()
+    callbacks.callPreset = callPreset_callback
+    callbacks.callImmediateScene = callScene_callback
+    callbacks.getStreamStatus = obs.obs_frontend_streaming_active
+    callbacks.startStopStream = streamOnOff_callback
+    callbacks.getFreeCameras = findInactiveCams
+    callbacks.setPreviewCamera = previewScene
+    deck = buttons.ViscaDeck(loadedConfig, callbacks)
 
     return True
 
 def getLiveCamera():
     # print('getting live cam')
+    print(f'fetching live camera...')
     current_scene = obs.obs_frontend_get_current_scene()
     currentScene = obs.obs_source_get_name(current_scene)
+    print(f'currentScene is {currentScene}')
     # print(f'"{currentScene}" is live')
     # currentScene = obs.obs_scene_from_source(current_scene)
     for camera in cameras:
         # print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
+        print(f'checking {camera.name} with scene {camera.sceneName}')
         if camera.sceneName == currentScene:
+            print(f'camera {camera.name} is live')
             return camera
     return None # TODO maybe throw an exception???
 
 def transitionScene(cam):
+    global deck
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == cam.sceneName:
+            deck.setSelectedCamera(getLiveCamera())
             obs.obs_frontend_set_current_scene(scene)
 
 def previewScene(cam):
@@ -250,9 +263,43 @@ def advModeChanged_callback(props, prop, settings):
     advancedMode = obs.obs_data_get_bool(settings, "picker_advMode")
     print(f'advanced mode is {"on" if advancedMode else "off"}')
 
-def callPreset_callback(preset: str) -> None:
+def findInactiveCams():
+    cams = cameras.copy()
+    print(f'finding avalaible cameras... all cameras: {",".join([c.name for c in cams])}')
+    liveCam = getLiveCamera()
+    if liveCam:
+        cams.remove(liveCam)
+    return cams
+
+def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
     # TODO make sure preset exists
-    print(f'calling preset "{preset}"')
+    print(f'calling preset "{preset}" on camera {camera.name}')
+    if camera == getLiveCamera():
+        # deck is somehow requesting the live camera be move
+        # probably something has changed the active camera since we handed it out
+        # TODO handle this case...
+        return False
+    
+    pos = None
+    if preset:
+        try:
+            print(f'getting "{preset}" from {loadedConfig.Cameras[camera.id].Assignments}')
+            pos = getattr(loadedConfig.Cameras[camera.id].Assignments, preset)
+        except AttributeError:
+            print(f'"{camera.name}" does not have preset "{preset}"')
+            return False
+        
+        result = camera.moveToPoint(pos.pan, pos.tilt, pos.zoom)
+        print(f'camera move {"success" if result else "failed"}')
+
+    previewScene(camera)
+    if advancedMode:
+        deck.startAdvancedTransition(camera, pos, finishAdvancedTransition_callback, cameras.index(camera))
+    else:
+        time.sleep(delayDur / 1000)
+        transitionScene(camera)
+    return True
+
     liveCam = getLiveCamera()
     if liveCam:
         print(f'"{liveCam.name}" is live')
@@ -297,7 +344,8 @@ def streamOnOff_callback(start: bool) -> bool:
         obs.obs_frontend_streaming_start()
         print('starting stream')
     elif not start and obs.obs_frontend_streaming_active():
-        print('stream was already on')
+        obs.obs_frontend_streaming_stop()
+        print('stopping stream')
     return obs.obs_frontend_streaming_active()
 
 # def testNearButton_callback(props, prop):
