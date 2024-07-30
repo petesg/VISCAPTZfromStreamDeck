@@ -245,5 +245,6 @@ class Camera:
         return not len(self._awaiting)
 
 if __name__ == "__main__":
-    cam1 = Camera('192.168.10.11', 1259, 1, "CAMERA 1")
-    cam2 = Camera('192.168.10.12', 1259, 1, "CAMERA 2")
+    cam1 = Camera('192.168.10.11', 1259, 1, "CAMERA 1", 1)
+    cam2 = Camera('192.168.10.12', 1259, 1, "CAMERA 2", 2)
+    cam3 = Camera('192.168.10.13', 1259, 1, "CAMERA 3", 3)
