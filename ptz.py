@@ -72,6 +72,16 @@ class Camera:
         sock.close()
         return True
 
+    def sendCommand(self, cmd: str, awaitPattern: str):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(cmd), 3, 2000):
+            return False
+        self._awaiting.append((re.compile(awaitPattern or r"905[\da-f]ff$"), None if awaitPattern is None else self._printResponse)) # completion message
+        if not self._clearAwaiting(sock, 10000):
+            return False
+        sock.close()
+
     def getPosition(self):
         self._updatePosition()
         return (self._pan, self._tilt, self._zoom)
@@ -87,7 +97,7 @@ class Camera:
         if not self._sendAndAck(sock, bytes.fromhex(f"8{self._channel:01X}01043802FF"), 3, 2000):
             return False
         return True
-    
+
     def drivePanTilt(self, pan: int, tilt: int) -> bool:
         """Drives camera at set velocity in P/T plane.
 
@@ -194,6 +204,7 @@ class Camera:
         return True
     
     def driveBrightness(self, up: bool):
+        return False
         print('BRIGHTNESS ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}0104390DFF'
         driveStr = f'8{self._channel:01X}01040D0{"2" if up else "3"}FF'
@@ -274,6 +285,9 @@ class Camera:
     def _unstuffZoom(self, packet):
         self._zoom = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0xF & packet[5])
 
+    def _printResponse(self, packet):
+        print(f'received generic packet: "{" ".join([format(b, "X") for b in packet])}"')
+
     def _unstuffPanTilt(self, packet):
         self._pan = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0x0F & packet[5])
         self._tilt = (0x0F & packet[6]) << 12 | (0x0F & packet[7]) << 8 | (0x0F & packet[8]) << 4 | (0x0F & packet[9])
@@ -334,6 +348,7 @@ class Camera:
         return ack
 
     def _checkIfAwaited(self, packet):
+        print(f'checking if "{packet}" is awaited')
         for i in range(len(self._awaiting)):
             if self._awaiting[i][0].match(packet.hex()):
                 if self._awaiting[i][1] is not None:
