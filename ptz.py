@@ -72,14 +72,14 @@ class Camera:
         sock.close()
         return True
 
-    def sendCommand(self, cmd: str, awaitPattern: str):
+    def sendCommand(self, cmd: str): #, awaitPattern: str):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(cmd), 3, 2000):
             return False
-        self._awaiting.append((re.compile(awaitPattern or r"905[\da-f]ff$"), None if awaitPattern is None else self._printResponse)) # completion message
-        if not self._clearAwaiting(sock, 10000):
-            return False
+        # self._awaiting.append((re.compile(awaitPattern or r"905[\da-f]ff$"), None if awaitPattern is None else self._printResponse)) # completion message
+        # if not self._clearAwaiting(sock, 10000):
+        #     return False
         sock.close()
 
     def getPosition(self):
@@ -302,7 +302,7 @@ class Camera:
         ts = curMillis() + timeout
         buf = b"\x00"
         while buf[-1] != 0xFF:
-            dataReady = select.select([sock], [], [], (ts - curMillis()) / 1000)
+            dataReady = select.select([sock], [], [], max(ts - curMillis(), 0) / 1000)
             if dataReady[0]:
                 data, addr = sock.recvfrom(4096)
                 # TODO validate addr
@@ -330,6 +330,8 @@ class Camera:
             # OR make a list of awaited messages to check against
             # TODO the following code crashes if timeout is reached with no message received (because `response` is `None`)
             try:
+                # if response:
+                #     print(f'waiting ack, got: "{" ".join([hex(b) for b in response])}"')
                 #print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
                 # TODO should I use a regex here instead of equality?
                 # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
@@ -343,6 +345,7 @@ class Camera:
                     self._sparePackets += [response]
                     #print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
             except AttributeError:
+                # print('no response')
                 ack = False
                 # there was no response
         return ack
@@ -360,10 +363,12 @@ class Camera:
     def _clearAwaiting(self, sock, timeout):
         # first check _sparePackets to see if an awaited packet was received already while ack waiting
         for packet in self._sparePackets:
+            # print(f'have spare packet: "{" ".join([hex(b) for b in packet])}"')
             self._checkIfAwaited(packet)
         ts = curMillis() + timeout
         while curMillis() < ts and len(self._awaiting):
             response = self._waitForPacket(sock, ts - curMillis())
+            # print(f'got packet packet: "{" ".join([hex(b) for b in packet])}"')
             self._checkIfAwaited(response)
         return not len(self._awaiting)
 
