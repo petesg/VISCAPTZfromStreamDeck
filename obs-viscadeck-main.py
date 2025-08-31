@@ -180,6 +180,9 @@ def configureMain():
             newCam = ptz.Camera(camera.ip, camera.port, camera.channel, camera.name, len(cameras))
             newCam.sceneName = "" # add property to hold scene name
             cameras.append(newCam)
+            for command in camera.BootCommands:
+                print(f'sending command "{command.command}" to {camera.name}...')
+                newCam.sendCommand(command.packet)
         print(f"{len(cameras)} cameras loaded")
     except AttributeError:
         return False

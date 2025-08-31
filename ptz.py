@@ -4,7 +4,13 @@ import re
 # from urllib import response # TODO is this supposed to be here or did it get auto added inadvertently???
 from __time import curMillis
 
+SHUTTER_MIN = 1
+SHUTTER_MAX = 17
+APERTURE_MIN = 0
+APERTURE_MAX = 12
+
 class Camera:
+
 
     def __init__(self, ip, port, channel, name, id) -> None:
         self.name = name
@@ -15,6 +21,8 @@ class Camera:
         self._pan = -1
         self._tilt = -1
         self._zoom = -1
+        self._shutter = -1
+        self._aperture = -1
         self._awaiting = [] # tuples of (awaited message, handler) [can't be a dict since duplicates are allowed]
         self._sparePackets = [] # received packets that weren't being awaited at the time
 
@@ -40,9 +48,48 @@ class Camera:
         #print(f'finishing with {len(self._awaiting)} awaited packets remaining')
         return True
 
+    def setAperture(self, a):
+        moveMsg = f'8{self._channel:01X}01044B00000{(a >> 4) & 0xF:01X}0{a & 0xF:01X}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
+            return False
+        self._awaiting.append((re.compile(r"905[\da-f]ff$"), None)) # completion message
+        if not self._clearAwaiting(sock, 10000):
+            return False
+        sock.close()
+        return True
+
+    def setShutter(self, s):
+        moveMsg = f'8{self._channel:01X}01044A00000{(s >> 4) & 0xF:01X}0{s & 0xF:01X}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(moveMsg), 3, 2000):
+            return False
+        self._awaiting.append((re.compile(r"905[\da-f]ff$"), None)) # completion message
+        if not self._clearAwaiting(sock, 10000):
+            return False
+        sock.close()
+        return True
+
+    def sendCommand(self, cmd: str): #, awaitPattern: str):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(cmd), 3, 2000):
+            return False
+        # self._awaiting.append((re.compile(awaitPattern or r"905[\da-f]ff$"), None if awaitPattern is None else self._printResponse)) # completion message
+        # if not self._clearAwaiting(sock, 10000):
+        #     return False
+        sock.close()
+
     def getPosition(self):
         self._updatePosition()
         return (self._pan, self._tilt, self._zoom)
+    
+    def getExposure(self):
+        self._updateAperture()
+        self._updateShutter()
+        return (self._aperture, self._shutter)
     
     def autofocus(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -50,7 +97,7 @@ class Camera:
         if not self._sendAndAck(sock, bytes.fromhex(f"8{self._channel:01X}01043802FF"), 3, 2000):
             return False
         return True
-    
+
     def drivePanTilt(self, pan: int, tilt: int) -> bool:
         """Drives camera at set velocity in P/T plane.
 
@@ -96,40 +143,68 @@ class Camera:
     def driveShutter(self, up: bool):
         print('SHUTTER ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
-        driveStr = f'8{self._channel:01X}01040A0{"2" if up else "3"}FF'
+        # driveStr = f'8{self._channel:01X}01040A0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         # have to first make sure exposure mode is set to manual
         # TODO make this done when shutter is selected from the deck, not every time the adjust button is pressed
-        if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
-            return False
-        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
-            return False
-        self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
-        #print(f'awaiting {len(self._awaiting)} packets...')
-        if not self._clearAwaiting(sock, 2000):
-            return False
+        # if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
+        #     return False
+        sock.close()
+        
+        # if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+        #     return False
+        # self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
+        # #print(f'awaiting {len(self._awaiting)} packets...')
+        # if not self._clearAwaiting(sock, 2000):
+        #     return False
+        # return True
+    
+        # the PTZOptics cameras are stupid and buggy and love to fight the exposure up/down commands by immediately
+        # readjusting the values so instead we have to inquire the current exposure values and then manually set
+        # the incremented values directly
+        
+        self._updateShutter()
+        newShutter = self._shutter + (1 if up else -1)
+        if newShutter >= SHUTTER_MIN and newShutter <= SHUTTER_MAX:
+            self.setShutter(newShutter)
         return True
     
     def driveAperture(self, up: bool):
         print('APERTURE ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
-        driveStr = f'8{self._channel:01X}01040B0{"2" if up else "3"}FF'
+        # driveStr = f'8{self._channel:01X}01040B0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((self._ip, self._port))
         # have to first make sure exposure mode is set to manual
         # TODO make this done when aperture is selected from the deck, not every time the adjust button is pressed
-        if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
-            return False
-        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
-            return False
-        self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
+        # !!TODO HIGH PRIORITY!! must move this out of here, it seems to sometimes be causing fighting even with the direct-set method below
+        #                        maybe just get rid of brightness control and put it in initial camera setup requested in issue #21
+        # if not self._sendAndAck(sock, bytes.fromhex(modeStr), 3, 2000):
+        #     return False
+        sock.close()
+
+        # if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+        #     return False
+        # self._awaiting += [(re.compile(r"905[\da-f]ff$"), None)] # completion message
         #print(f'awaiting {len(self._awaiting)} packets...')
-        if not self._clearAwaiting(sock, 2000):
-            return False
+        # if not self._clearAwaiting(sock, 2000):
+        #     return False
+
+        # stupid buggy cameras, gotta do it manually like with shutter
+
+        self._updateAperture()
+        newAperture = self._aperture + (1 if up else -1)
+        if newAperture >= APERTURE_MIN and newAperture <= APERTURE_MAX:
+            ts = curMillis()
+            # do a stupid pause?
+            # while curMillis() < ts + 5:
+            #     pass
+            self.setAperture(newAperture)
         return True
     
     def driveBrightness(self, up: bool):
+        return False
         print('BRIGHTNESS ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}0104390DFF'
         driveStr = f'8{self._channel:01X}01040D0{"2" if up else "3"}FF'
@@ -170,24 +245,71 @@ class Camera:
         #print('responses received')
         sock.close()
 
+    def _updateAperture(self):
+        apertureInqMsg = f'8{self._channel}09044BFF'
+        # print(f'opening socket')
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        # (apparently inquiry messages aren't ACK'ed)
+        # TODO change sendAndAck to optionally not require ACK but still make sure no NAK is received
+
+        # return messages are indistinguishable (seriously Sony?), must send one and wait for retrun before sending next
+        # print(f'sending shutter inquiry')
+        # sock.send(bytes.fromhex(shutterInqMsg)) # TODO temp, see above
+        # print(f'awaiting shutter response')
+        # self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffShutter))
+        # self._clearAwaiting(sock, 5000)
+        # print(f'sending aperture inquiry')
+        sock.send(bytes.fromhex(apertureInqMsg)) # TODO temp, see above
+        # print(f'awaiting aperture response')
+        self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffAperture))
+        self._clearAwaiting(sock, 5000)
+        sock.close()
+
+    def _updateShutter(self):
+        shutterInqMsg = f'8{self._channel}09044AFF'
+        # print(f'opening socket')
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        # (apparently inquiry messages aren't ACK'ed)
+        # TODO change sendAndAck to optionally not require ACK but still make sure no NAK is received
+
+        # return messages are indistinguishable (seriously Sony?), must send one and wait for retrun before sending next
+        # print(f'sending shutter inquiry')
+        sock.send(bytes.fromhex(shutterInqMsg)) # TODO temp, see above
+        # print(f'awaiting shutter response')
+        self._awaiting.append((re.compile(r"9050(0[\da-f]){4}ff$"), self._unstuffShutter))
+        self._clearAwaiting(sock, 5000)
+        sock.close()
+
     def _unstuffZoom(self, packet):
         self._zoom = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0xF & packet[5])
+
+    def _printResponse(self, packet):
+        print(f'received generic packet: "{" ".join([format(b, "X") for b in packet])}"')
 
     def _unstuffPanTilt(self, packet):
         self._pan = (0x0F & packet[2]) << 12 | (0x0F & packet[3]) << 8 | (0x0F & packet[4]) << 4 | (0x0F & packet[5])
         self._tilt = (0x0F & packet[6]) << 12 | (0x0F & packet[7]) << 8 | (0x0F & packet[8]) << 4 | (0x0F & packet[9])
+
+    def _unstuffShutter(self, packet):
+        self._shutter = (0x0F & packet[4]) << 4 | (0x0F & packet[5])
+
+    def _unstuffAperture(self, packet):
+        self._aperture = (0x0F & packet[4]) << 4 | (0x0F & packet[5])
     
     def _waitForPacket(self, sock, timeout):
         ts = curMillis() + timeout
         buf = b"\x00"
         while buf[-1] != 0xFF:
-            dataReady = select.select([sock], [], [], (ts - curMillis()) / 1000)
+            dataReady = select.select([sock], [], [], max(ts - curMillis(), 0) / 1000)
             if dataReady[0]:
                 data, addr = sock.recvfrom(4096)
                 # TODO validate addr
                 buf += data # TODO account for multiple messages strung together (so 0xFF is in the middle)
             if curMillis() > ts:
                 return None
+        # print(f'got packet: {buf[1:].hex()}')
         return buf[1:]
     
     def _sendAndAck(self, sock, msg, retries, timeout):
@@ -208,6 +330,8 @@ class Camera:
             # OR make a list of awaited messages to check against
             # TODO the following code crashes if timeout is reached with no message received (because `response` is `None`)
             try:
+                # if response:
+                #     print(f'waiting ack, got: "{" ".join([hex(b) for b in response])}"')
                 #print(f'received "{response.hex()}" ({len(response)} bytes, raw: {response}) ')
                 # TODO should I use a regex here instead of equality?
                 # if response == bytes.fromhex(f"904{self._channel + 1}FF"): # ACK packet (channel gets +1 for some reason ?!??!?!)
@@ -221,11 +345,13 @@ class Camera:
                     self._sparePackets += [response]
                     #print(f"response isn't ack (there are now {len(self._sparePackets)} spares stored)")
             except AttributeError:
+                # print('no response')
                 ack = False
                 # there was no response
         return ack
 
     def _checkIfAwaited(self, packet):
+        print(f'checking if "{packet}" is awaited')
         for i in range(len(self._awaiting)):
             if self._awaiting[i][0].match(packet.hex()):
                 if self._awaiting[i][1] is not None:
@@ -237,10 +363,12 @@ class Camera:
     def _clearAwaiting(self, sock, timeout):
         # first check _sparePackets to see if an awaited packet was received already while ack waiting
         for packet in self._sparePackets:
+            # print(f'have spare packet: "{" ".join([hex(b) for b in packet])}"')
             self._checkIfAwaited(packet)
         ts = curMillis() + timeout
         while curMillis() < ts and len(self._awaiting):
             response = self._waitForPacket(sock, ts - curMillis())
+            # print(f'got packet packet: "{" ".join([hex(b) for b in packet])}"')
             self._checkIfAwaited(response)
         return not len(self._awaiting)
 
