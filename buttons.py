@@ -445,7 +445,7 @@ class ViscaDeck:
         self._driveActive = True
 
     def _moveCameraZoomPressed_callback(self, pressed: bool, key: int, dir: str):
-        speed = [1, 3, 7][self._camDriveSpeed]
+        speed = [1, 4, 7][self._camDriveSpeed]
         if not pressed:
             if self._driveActive:
                 speed = 0
