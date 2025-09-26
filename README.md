@@ -20,11 +20,12 @@ The `obs.py` module serves as an entry point for the plugin.  However, all post-
 
 ## obs.py
 
-As mentioned, this module serves as the entry point for the plugin.  The first section is labeled `# intrinsics` and defines a number of functions used by OBS to configure the script's setup interface and some actions that are triggered by OBS.  This is mostly setting up the config UI as we don't use any OBS-triggered events after loading (all our actions will be triggered by button presses on the Stream Deck).  See [obspython reference](https://github.com/upgradeQ/Streaming-Software-Scripting-Reference) for details on the OBS scripting api.
+This module is the entry point for the plugin when loaded by OBS.  The first section is labeled `# intrinsics` and defines a number of functions used by OBS to configure the script's setup interface and some actions that are triggered by OBS.  This is mostly setting up the config UI as we don't use any OBS-triggered events after loading (all our actions will be triggered by button presses on the Stream Deck).  See [obspython reference](https://github.com/upgradeQ/Streaming-Software-Scripting-Reference) for details on the OBS scripting api.
 
 The `configureMain()` function covers all primary setup for the plugin:
 * Loads the json config file.
 * Instantiates a camera object (see [ptz module](#ptz)) for each of the cameras in the loaded config.
+* Sends all the bootup commands specified in config file for each loaded camera.
 * Kicks off the [Stream Deck module](#buttons.py) which will serve as the source for all actions performed by the plugin.
 
 The rest of this module defines a number of callbacks used by the other modules to execute actions in OBS such as switching preview/live scenes and starting/stopping the stream.
@@ -56,8 +57,26 @@ Most camera functions use a trivial application of the above scheme.  See includ
 
 #### Brightness Controls Hack for PTZ Optics Brand Cameras
 
-My experience with the particular "PTZ Optics" brand of cameras I use has been that they struggle mightily with the basic brightness controls.  Using the (`81 01 04 0D ...`) commands under the `CAM_Bright` section of the command list document results in inconsistent behavior from the cameras - sometimes the up/down commands seem to do nothing at all and sometimes the camera seems to fight the commands being sent by immediately readjusting the brightness itself.
+My experience with the particular "PTZ Optics" brand of cameras I use has been that they exhibit very buggy behavior with the basic brightness controls.  Using the (`81 01 04 0D ...`) commands under the `CAM_Bright` section of the command list document results in inconsistent behavior from the cameras - sometimes the up/down commands seem to do nothing at all and sometimes the camera seems to fight the commands being sent by immediately readjusting the brightness itself.
 
 Furthermore, my cameras even seem to sometimes fight the shutter speed and aperture up/down commands (`81 01 04 0A/0B 02/03 FF`).  Despite being in manual exposure mode (with `81 01 04 39 03 FF`), my cameras frequently either ignore these commands or immediately readjust the brightness after making the requested change for only a fraction of a second.
 
 To get around this, the `driveShutter()` and `driveAperture()` do not use the relevant up/down commands, but instead first query the camera's current shutter/aperture setting and then use the absolute set command to set the incremented value directly.
+
+## buttons.py
+
+This module defines the `ViscaDeck` class which implements the high-level interface with the Stream Deck, relying on the [Python StreamDeck library](https://pypi.org/project/streamdeck/) for the hardware-level interface.  Upon instantiation, a `ViscaDeck` object will search for a connected Stream Deck to use and launch a thread (handled by the StreamDeck library) to interface with it.
+
+### Pages
+
+A "page" system is used to manage the state of the deck at any given time - a page refering to how each button is drawn and what its function will be.  Pages are changed by calling `_drawDeck()` with the desired page name string which will handle drawing the initial state of every key and populating the `_keyHandlers` list with callback functions for any keys used on the given page.  Once a page is loaded with `_drawDeck()`, buttons are responsible for redrawing themselves as necessary for their own function.
+
+### Button Press Handling
+
+The StreamDeck thread thread provides an event which will get triggered on any key press, to which the `_globalKeyPressed_callback()` handler is attached.  This global handler will call the correct individual key handler from `_keyHandlers`.
+
+### Button Image Rendering
+
+All buttons use a .png image file, sometimes with title text drawn at the top of the button screen and/or a colored border drawn around the edge.  The StreamDeck library provides easy functions for drawing to the button screens utilizing PIL images, so the `_renderIcon()` method only needs to perform the common tasks of loading an image file and drawing title/border.
+
+One more method, `_renderLargeText()` is implemented to draw text spread across multiple adjacent buttons.
