@@ -5,7 +5,7 @@ import ptz
 from __time import curMillis
 
 from PIL import Image, ImageDraw, ImageFont
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Literal
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.ImageHelpers import PILHelper
 from StreamDeck.Devices.StreamDeck import StreamDeck
@@ -26,6 +26,7 @@ class ViscaDeck:
 
     _deck: StreamDeck
     _loadedConfig: SimpleNamespace
+    _deckSize: Literal['REGULAR', 'XL']
     _currentPage: str = 'HOME'
     _lastPage: str
     # _obs.callPreset: Callable[[str], None]
@@ -88,7 +89,7 @@ class ViscaDeck:
         if len(streamdecks) > 1:
             print('Warning: multiple streamdecks not [yet?] supported')
 
-        for index, deck in enumerate(streamdecks):
+        for _, deck in enumerate(streamdecks):
             # Skip decks with no screen
             if not deck.is_visual():
                 continue
@@ -98,6 +99,11 @@ class ViscaDeck:
 
         self._deck.open()
         self._deck.reset()
+
+        if self._deck.KEY_COLS == 8 and self._deck.KEY_ROWS == 4:
+            self._deckSize = 'XL'
+        else:
+            self._deckSize = 'REGULAR' # only sizes I've bothered to support so far
 
         print(f"Opened '{self._deck.deck_type()}' device (serial number: '{self._deck.get_serial_number()}', fw: '{self._deck.get_firmware_version()}')")
 
