@@ -15,7 +15,7 @@ import json
 from types import SimpleNamespace
 
 class ObsDeckEvents:
-    callPreset: Callable[[str], None]
+    callPreset: Callable[[str, ptz.Camera], None]
     callImmediateScene: Callable[[str], None]
     startStopStream: Callable[[bool], bool]
     getStreamStatus: Callable[[None], bool]
@@ -47,7 +47,6 @@ class ViscaDeck:
     _driveFinishedCallback: Callable
     _valueSelected: int = 0
     _availableValues: list[tuple[str, str]] = [
-        ('icoBrightness_b.png', 'BRIGHTNESS'),
         ('icoAperture_b.png', 'APERTURE'),
         ('icoShutter_b.png', 'SHUTTER')
     ]
@@ -65,6 +64,10 @@ class ViscaDeck:
         # self._selectedCams = ["foo", "bar"] # TODO implement this
 
         self._connectSurface()
+
+        # if self._deckSize == 'XL':
+        #     # always an active camera when in XL
+        #     self._obs.callPreset(None, self._selectedCam)
     
     def close(self):
         self._disconnectSurface()
@@ -76,12 +79,6 @@ class ViscaDeck:
         self._drivenCamera = camera
         self._driveTarget = position
         self._driveFinishedCallback = finishedCallback
-    
-    def setSelectedCamera(self, cam: ptz.Camera) -> None:
-        if cam is None:
-            # TODO handle this
-            return
-        self._selectedCam = cam
 
     def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
@@ -119,6 +116,8 @@ class ViscaDeck:
 
         # Default the selected camera to something
         self._selectedCam = self._obs.getFreeCameras()[0]
+        if self._deckSize == 'XL':
+            self._drivenCamera = self._selectedCam
 
         # Set initial key images.
         self._drawDeck("HOME")
@@ -401,10 +400,11 @@ class ViscaDeck:
 
     def _exitAdvancedTransition(self):
         self._driveFinishedCallback = None
-        self._drivenCamera = None
-        self._driveTarget = None
-        self._advDriveContext = None
-        self._driveActive = False
+        if self._deckSize != 'XL':
+            self._drivenCamera = None
+            self._driveTarget = None
+            self._advDriveContext = None
+            self._driveActive = False
         self._drawDeck("HOME")
     
     def _startStopStream(self, state: bool, key: int, confirmed: bool) -> None:
@@ -443,10 +443,8 @@ class ViscaDeck:
             # self._holdTimer = 0
 
     def _presetKeyPressed_callback(self, state: bool, key: int, preset: str) -> None:
-        print(f'KEY CALLBACK')
         if not state:
             return
-        print(f'PRESSED')
         # TODO don't do anything if a preset is already being called (does that already take care of itself bc we're not using asynch callback and this blocks?)
         p = None
         if preset:
@@ -477,7 +475,10 @@ class ViscaDeck:
             return
         self._valueSelected = selection
         for j in range(min(4, len(self._availableValues))):
-            i = self._keyIndex(3, j)
+            if self._deckSize == 'REGULAR':
+                i = self._keyIndex(3, j)
+            elif self._deckSize == 'XL':
+                i = self._keyIndex(j, 3)
             self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
 
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
@@ -574,12 +575,8 @@ class ViscaDeck:
             self._drawDeck('CAMSELECT')
         elif self._deckSize == 'XL':
             self._drawDeck('HOME')
+            self._drivenCamera = cam
         self._obs.setPreviewCamera(cam)
-
-    def _camCyclePressed_callback(self, pressed: bool, key: int, context: Any):
-        if not pressed:
-            return
-        self._selectedCam
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
         if not pressed:
