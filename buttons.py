@@ -70,7 +70,8 @@ class ViscaDeck:
         self._disconnectSurface()
 
     def startAdvancedTransition(self, camera: ptz.Camera, position: object, finishedCallback: Callable, context: Any):
-        self._drawDeck("DRIVE")
+        if self._deckSize == 'REGULAR':
+            self._drawDeck("DRIVE")
         self._advDriveContext = context
         self._drivenCamera = camera
         self._driveTarget = position
@@ -139,114 +140,177 @@ class ViscaDeck:
         print('now safe to exit')
         self._deck = None
     
+    def _keyRow(self, keyIndex: int) -> int:
+        return int(keyIndex / self._deck.KEY_COLS)
+    
+    def _keyCol(self, keyIndex: int) -> int:
+        return keyIndex % self._deck.KEY_COLS
+
+    def _keyIndex(self, col: int, row: int):
+        if col >= self._deck.KEY_COLS:
+            raise IndexError('Key column out of range')
+        elif row >= self._deck.KEY_ROWS:
+            raise IndexError('Key row out of range')
+        return self._deck.KEY_COLS * row + col
+
+    def _drawSceneButtons(self, beginCol: int, endCol: int | None, beginRow: int, endRow: int | None, sceneType: Literal['CAM_PRESET', 'TITLE_CARD'], startButton: int = None) -> int | None:
+        # calculate auto begin/end
+        if endCol is None:
+            endCol = self._deck.KEY_COLS - 1
+        if endRow is None:
+            endRow = self._deck.KEY_ROWS - 1
+        # initialize button index
+        i = beginCol + beginRow * self._deck.KEY_COLS
+        if startButton is not None and \
+                self._keyCol(startButton) >= beginCol and \
+                self._keyCol(startButton) <= endCol and \
+                self._keyRow(startButton) >= beginRow and \
+                self._keyRow(startButton) <= endRow:
+            i = startButton
+        # populate buttons
+        if sceneType == 'CAM_PRESET':
+            scenes = self._loadedConfig.Presets.__dict__
+        elif sceneType == 'TITLE_CARD':
+            scenes = self._loadedConfig.ExtraScenes.__dict__
+        for p in list(scenes):
+            if self._keyRow(i) > endRow:
+                return None
+            # set up key
+            if sceneType == 'CAM_PRESET':
+                details = self._loadedConfig.Presets.__dict__[p]
+                self._keyHandlers[i] = (self._presetKeyPressed_callback, p)
+            elif sceneType == 'TITLE_CARD':
+                details = self._loadedConfig.ExtraScenes.__dict__[p]
+                self._keyHandlers[i] = (self._sceneKeyPressed_callback, p)
+            self._renderIcon(details.icon, details.label, None, i)
+            # increment to next key and roll over if needed
+            if self._keyCol(i) == endCol:
+                i = self._keyIndex(beginCol, self._keyRow(i) + 1)
+            else:
+                i += 1
+        return i
+
+    def _drawDriveButtons(self, col: int, row: int):
+        if self._deckSize == 'XL':
+            square = True
+        else:
+            square = False
+        # arrow keys
+        i = self._keyIndex(col + 1, row + 0)
+        self._renderIcon('icoUpArrow.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'UP')
+        i = self._keyIndex(col + 0, row + 1)
+        self._renderIcon('icoLeftArrow.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'LEFT')
+        i = self._keyIndex(col + 2, row + 1)
+        self._renderIcon('icoRightArrow.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'RIGHT')
+        i = self._keyIndex(col + 1, row + 2)
+        self._renderIcon('icoDownArrow.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'DOWN')
+        # zoom keys
+        i = self._keyIndex(col + 0, row + 0)
+        self._renderIcon('icoZoomIn.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'IN')
+        i = self._keyIndex(col + 0, row + 2)
+        self._renderIcon('icoZoomOut.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'OUT')
+        # plus/minus keys
+        i = self._keyIndex(col + 2, row + 0)
+        self._renderIcon('icoValueUp_b.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, True)
+        i = self._keyIndex(col + 2, row + 2)
+        self._renderIcon('icoValueDown_b.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
+        # value select keys
+        for j in range(min(4, len(self._availableValues))):
+            if square:
+                i = self._keyIndex(col + j, row + 3)
+            else:
+                i = self._keyIndex(col + 3, row + j)
+            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+            self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
+        # reset key
+        i = self._keyIndex(col + 1, row + 1)
+        self._renderIcon('icoReset_r.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraResetPressed_callback, None)
+        # submit/cancel keys
+        i = self._keyIndex(col + (3 if square else 4), row + 0)
+        self._renderIcon('icoCheck_g.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraSubmitPressed_callback, None)
+        if self._deckSize != 'XL': # no cancel button for xl
+            i = self._keyIndex(col + (3 if square else 4), row + 1)
+            self._renderIcon('icoBack_r.png', None, None, i)
+            self._keyHandlers[i] = (self._moveCameraCancelPressed_callback, None)
+        # speed key
+        i = self._keyIndex(col + (3 if square else 4), row + (1 if square else 2))
+        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
+
     def _drawDeck(self, page):
         # clear keys
         for i in range(self._deck.key_count()):
             self._keyHandlers[i] = (None, None)
             self._renderIcon(None, None, None, i)
         if page == "HOME":
-            # populate preset buttons
-            i = 0
-            for p in list(self._loadedConfig.Presets.__dict__):
+            if self._deckSize == 'REGULAR':
+                # populate preset buttons
+                i = self._drawSceneButtons(0, 3, 0, 2, 'CAM_PRESET')
+                # non-preset transition button
                 if (i + 1) % self._deck.KEY_COLS == 0:
                     i += 1
-                details = self._loadedConfig.Presets.__dict__[p]
-                self._renderIcon(details.icon, details.label, None, i)
-                self._keyHandlers[i] = (self._presetKeyPressed_callback, p)
+                self._renderIcon("icoMove.png", "MOVE", None, i)
+                self._keyHandlers[i] = (self._presetKeyPressed_callback, None)
                 i += 1
-            # non-preset transition button
-            if (i + 1) % self._deck.KEY_COLS == 0:
-                i += 1
-            details = self._loadedConfig.Presets.__dict__[p]
-            self._renderIcon("icoMove.png", "MOVE", None, i)
-            self._keyHandlers[i] = (self._presetKeyPressed_callback, None)
-            i += 1
-            # populate non-camera scene buttons
-            for p in list(self._loadedConfig.ExtraScenes.__dict__):
                 if (i + 1) % self._deck.KEY_COLS == 0:
                     i += 1
-                details = self._loadedConfig.ExtraScenes.__dict__[p]
-                self._renderIcon(details.icon, details.label, None, i)
-                self._keyHandlers[i] = (self._sceneKeyPressed_callback, p)
-                i += 1
+                # populate non-camera scene buttons
+                self._drawSceneButtons(0, 3, 0, 2, 'TITLE_CARD', i)
             # stream button
-            i = self._deck.KEY_COLS - 1
+            if self._deckSize == 'REGULAR':
+                i = self._deck.KEY_COLS - 1
+            elif self._deckSize == 'XL':
+                i = self._keyIndex(3, 2)
             if self._obs.getStreamStatus():
                 self._renderIcon(None, "END\nSTREAM", 'green', i)
             else:
                 self._renderIcon(None, "START\nSTREAM", 'red', i)
             self._keyHandlers[i] = (self._streamKeyPressed_callback, None)
-            # camera button
-            i = self._deck.key_count() - 1
-            self._renderIcon("icoSwap.png", 'CAM SEL', None, i) # self._selectedCam.name.upper()
-            self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
-            # edit button
-            # i = self._deck.KEY_COLS * 2 - 1
-            # self._renderIcon("icoEdit.png", "", None, i)
-            # self._keyHandlers[i] = (self._editPresetsPressed_callback, None)
+            # camera button[s]
+            if self._deckSize == 'REGULAR':
+                i = self._deck.key_count() - 1
+                self._renderIcon("icoSwap.png", 'CAM SEL', None, i) # self._selectedCam.name.upper()
+                self._keyHandlers[i] = (self._camsKeyPressed_callback, None)
+            elif self._deckSize == 'XL':
+                availableCams = self._obs.getFreeCameras()
+                j = 4
+                for camName in [c.name for c in self._loadedConfig.Cameras]:
+                    callback = None
+                    cam = None
+                    for c in availableCams:
+                        if c.name == camName:
+                            callback = self._camSelectPressed_callback
+                            cam = c
+                            break
+                    i = self._keyIndex(j, 3)
+                    self._renderIcon('icoCamera.png' if cam else 'icoCamera_g.png', camName, 'white' if cam == self._selectedCam else None, i)
+                    self._keyHandlers[i] = (callback, cam)
+                    j += 1
+                    # drive panel on XL also
+                    self._drawDriveButtons(0, 0)
 
         elif page == "DRIVE":
-            # arrow keys
-            i = self._getKeyId(1, 0)
-            self._renderIcon('icoUpArrow.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'UP')
-            i = self._getKeyId(0, 1)
-            self._renderIcon('icoLeftArrow.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'LEFT')
-            i = self._getKeyId(2, 1)
-            self._renderIcon('icoRightArrow.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'RIGHT')
-            i = self._getKeyId(1, 2)
-            self._renderIcon('icoDownArrow.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraArrowPressed_callback, 'DOWN')
-            # zoom keys
-            i = self._getKeyId(0, 0)
-            self._renderIcon('icoZoomIn.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'IN')
-            i = self._getKeyId(0, 2)
-            self._renderIcon('icoZoomOut.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraZoomPressed_callback, 'OUT')
-            # plus/minus keys
-            i = self._getKeyId(2, 0)
-            self._renderIcon('icoValueUp_b.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, True)
-            i = self._getKeyId(2, 2)
-            self._renderIcon('icoValueDown_b.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
-            # value select keys
-            for j in range(min(3, len(self._availableValues))):
-                i = self._getKeyId(3, j)
-                self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
-                self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
-            # reset key
-            i = self._getKeyId(1, 1)
-            self._renderIcon('icoReset_r.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraResetPressed_callback, None)
-            # submit/cancel keys
-            i = self._getKeyId(4, 0)
-            self._renderIcon('icoCheck_g.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraSubmitPressed_callback, None)
-            i = self._getKeyId(4, 1)
-            self._renderIcon('icoBack_r.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraCancelPressed_callback, None)
-            # speed keys
-            # for j in range(3):
-                # i = self._getKeyId(0, j)
-                # self._renderIcon(f'icoSpeed{j}.png', None, 'white' if j == self._camDriveSpeed else None, i)
-                # self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, j)
-            i = self._getKeyId(4, 2)
-            self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, i)
-            self._keyHandlers[i] = (self._moveCameraSpeedPressed_callback, None)
+            self._drawDriveButtons(0, 0)
 
         elif page == "CONFIRM":
             # message
             self._renderLargeText(self._confirmPageMessage, 0, 0, 5, 1, 32, kerf=10)
             # yes key
-            i = self._getKeyId(1, 1)
+            i = self._keyIndex(1, 1)
             self._renderIcon('icoCheck_g.png', None, None, i)
             self._keyHandlers[i] = (self._confirmHandler, True)
             # no key
-            i = self._getKeyId(3, 1)
+            i = self._keyIndex(3, 1)
             self._renderIcon('icoCancel_r.png', None, None, i)
             self._keyHandlers[i] = (self._confirmHandler, False)
 
@@ -257,12 +321,12 @@ class ViscaDeck:
             availableCams = self._obs.getFreeCameras()
             j = 0
             for cam in availableCams:
-                i = self._getKeyId(j, 1)
+                i = self._keyIndex(j, 1)
                 self._renderIcon(None, cam.name, 'white' if cam == self._selectedCam else None, i)
                 self._keyHandlers[i] = (self._camSelectPressed_callback, cam)
                 j += 1
             # back button
-            i = self._getKeyId(0, 2)
+            i = self._keyIndex(0, 2)
             self._renderIcon('icoBack.png', None, None, i)
             self._keyHandlers[i] = (self._goToPagePressed_callback, 'HOME')
 
@@ -327,20 +391,13 @@ class ViscaDeck:
         # chop into tiles and assign to keys
         for j in range(rows):
             for i in range(cols):
-                key = self._getKeyId(i, j)
+                key = self._keyIndex(i, j)
                 x1 = i * (self._deck.KEY_PIXEL_WIDTH + kerf)
                 y1 = j * (self._deck.KEY_PIXEL_HEIGHT + kerf)
                 x2 = x1 + self._deck.KEY_PIXEL_WIDTH
                 y2 = y1 + self._deck.KEY_PIXEL_HEIGHT
                 tile = draw._image.crop((x1, y1, x2, y2))
                 self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, tile))
-
-    def _getKeyId(self, col: int, row: int):
-        if col >= self._deck.KEY_COLS:
-            raise IndexError('Key column out of range')
-        elif row >= self._deck.KEY_ROWS:
-            raise IndexError('Key row out of range')
-        return self._deck.KEY_COLS * row + col
 
     def _exitAdvancedTransition(self):
         self._driveFinishedCallback = None
@@ -419,8 +476,8 @@ class ViscaDeck:
         if not pressed:
             return
         self._valueSelected = selection
-        for j in range(min(3, len(self._availableValues))):
-            i = self._getKeyId(3, j)
+        for j in range(min(4, len(self._availableValues))):
+            i = self._keyIndex(3, j)
             self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
 
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
@@ -507,14 +564,22 @@ class ViscaDeck:
             return
         self._camDriveSpeed += 1
         self._camDriveSpeed %= 3
-        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, self._getKeyId(4, 2))
+        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, self._keyIndex(4, 2))
 
     def _camSelectPressed_callback(self, pressed: bool, key: int, cam: ptz.Camera):
         if not pressed:
             return
         self._selectedCam = cam
-        self._drawDeck('CAMSELECT')
+        if self._deckSize == 'REGULAR':
+            self._drawDeck('CAMSELECT')
+        elif self._deckSize == 'XL':
+            self._drawDeck('HOME')
         self._obs.setPreviewCamera(cam)
+
+    def _camCyclePressed_callback(self, pressed: bool, key: int, context: Any):
+        if not pressed:
+            return
+        self._selectedCam
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
         if not pressed:
