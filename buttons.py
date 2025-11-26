@@ -64,10 +64,6 @@ class ViscaDeck:
         # self._selectedCams = ["foo", "bar"] # TODO implement this
 
         self._connectSurface()
-
-        # if self._deckSize == 'XL':
-        #     # always an active camera when in XL
-        #     self._obs.callPreset(None, self._selectedCam)
     
     def close(self):
         self._disconnectSurface()
@@ -116,8 +112,6 @@ class ViscaDeck:
 
         # Default the selected camera to something
         self._selectedCam = self._obs.getFreeCameras()[0]
-        if self._deckSize == 'XL':
-            self._drivenCamera = self._selectedCam
 
         # Set initial key images.
         self._drawDeck("HOME")
@@ -400,11 +394,10 @@ class ViscaDeck:
 
     def _exitAdvancedTransition(self):
         self._driveFinishedCallback = None
-        if self._deckSize != 'XL':
-            self._drivenCamera = None
-            self._driveTarget = None
-            self._advDriveContext = None
-            self._driveActive = False
+        self._drivenCamera = None
+        self._driveTarget = None
+        self._advDriveContext = None
+        self._driveActive = False
         self._drawDeck("HOME")
     
     def _startStopStream(self, state: bool, key: int, confirmed: bool) -> None:
@@ -575,7 +568,6 @@ class ViscaDeck:
             self._drawDeck('CAMSELECT')
         elif self._deckSize == 'XL':
             self._drawDeck('HOME')
-            self._drivenCamera = cam
         self._obs.setPreviewCamera(cam)
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
