@@ -65,6 +65,10 @@ class ViscaDeck:
 
         self._connectSurface()
     
+    def open(self):
+        if self._deckSize == 'XL':
+            self._obs.callPreset(None, self._selectedCam)
+
     def close(self):
         self._disconnectSurface()
 
@@ -75,6 +79,15 @@ class ViscaDeck:
         self._drivenCamera = camera
         self._driveTarget = position
         self._driveFinishedCallback = finishedCallback
+    
+    def setSelectedCamera(self, cam: ptz.Camera) -> None:
+        if cam is None:
+            # TODO handle this
+            return
+        if self._deckSize == 'XL':
+            self._camSelectPressed_callback(True, None, cam)
+        else:
+            self._selectedCam = cam
 
     def _connectSurface(self):
         streamdecks = DeviceManager().enumerate()
@@ -146,6 +159,7 @@ class ViscaDeck:
             raise IndexError('Key row out of range')
         return self._deck.KEY_COLS * row + col
 
+    # TODO this needs to be profiled, it takes forever to run
     def _drawSceneButtons(self, beginCol: int, endCol: int | None, beginRow: int, endRow: int | None, sceneType: Literal['CAM_PRESET', 'TITLE_CARD'], startButton: int = None) -> int | None:
         # calculate auto begin/end
         if endCol is None:
@@ -160,12 +174,14 @@ class ViscaDeck:
                 self._keyRow(startButton) >= beginRow and \
                 self._keyRow(startButton) <= endRow:
             i = startButton
+        # print(f'drawing {sceneType} scene buttons starting at key {i}')
         # populate buttons
         if sceneType == 'CAM_PRESET':
             scenes = self._loadedConfig.Presets.__dict__
         elif sceneType == 'TITLE_CARD':
             scenes = self._loadedConfig.ExtraScenes.__dict__
         for p in list(scenes):
+            # print(f'drawing scene button on key {i}')
             if self._keyRow(i) > endRow:
                 return None
             # set up key
@@ -259,6 +275,9 @@ class ViscaDeck:
                     i += 1
                 # populate non-camera scene buttons
                 self._drawSceneButtons(0, 3, 0, 2, 'TITLE_CARD', i)
+            elif self._deckSize == 'XL':
+                i = self._drawSceneButtons(4, 7, 0, 2, 'CAM_PRESET')
+                i = self._drawSceneButtons(4, 7, 0, 2, 'TITLE_CARD', i)
             # stream button
             if self._deckSize == 'REGULAR':
                 i = self._deck.KEY_COLS - 1
@@ -286,7 +305,7 @@ class ViscaDeck:
                             cam = c
                             break
                     i = self._keyIndex(j, 3)
-                    self._renderIcon('icoCamera.png' if cam else 'icoCamera_g.png', camName, 'white' if cam == self._selectedCam else None, i)
+                    self._renderIcon('icoCamera.png' if cam else 'icoCamera_g.png', camName.upper(), 'white' if cam == self._selectedCam else None, i)
                     self._keyHandlers[i] = (callback, cam)
                     j += 1
                     # drive panel on XL also
@@ -342,7 +361,7 @@ class ViscaDeck:
         if borderColor:
             border = Image.new("RGBA", image.size, '#00000000')
             ovDraw = ImageDraw.Draw(border)
-            ovDraw.rounded_rectangle((1, 1, image.width - 1, image.height - 1), 7, '#00000000', borderColor, 4)
+            ovDraw.rounded_rectangle((1, 1, image.width - 1, image.height - 1), 9, "#00000000", borderColor, 4)
             image = Image.alpha_composite(image.convert('RGBA'), border).convert('RGB')
         
         draw = ImageDraw.Draw(image)
@@ -393,11 +412,12 @@ class ViscaDeck:
                 self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, tile))
 
     def _exitAdvancedTransition(self):
-        self._driveFinishedCallback = None
-        self._drivenCamera = None
-        self._driveTarget = None
-        self._advDriveContext = None
-        self._driveActive = False
+        if self._deckSize != 'XL':
+            self._driveFinishedCallback = None
+            self._drivenCamera = None
+            self._driveTarget = None
+            self._advDriveContext = None
+            self._driveActive = False
         self._drawDeck("HOME")
     
     def _startStopStream(self, state: bool, key: int, confirmed: bool) -> None:
@@ -442,13 +462,13 @@ class ViscaDeck:
         p = None
         if preset:
             p = getattr(self._loadedConfig.Presets, preset)
-            print(f'RENDER rendering {key} as stdby')
+            # print(f'RENDER rendering {key} as stdby')
         self._renderIcon(p.icon if p else "icoMove.png", p.label if p else "MOVE", 'red', key)
         self._obs.callPreset(preset, self._selectedCam)
         # TODO move delay here (wait, why again?)
         if self._currentPage == "HOME":
             self._renderIcon(p.icon if p else "icoMove.png", p.label if p else "MOVE", None, key)
-            print(f'RENDER rendering {key} normal')
+            # print(f'RENDER rendering {key} normal')
         # TODO save what preset is being viewed so it can be re-highlighted if the deck is redrawn
 
     def _sceneKeyPressed_callback(self, state: bool, key: int, scene: str) -> None:
@@ -485,7 +505,7 @@ class ViscaDeck:
             else:
                 # button is just getting released from key press to go into drive mode
                 return
-        print(f'DRIVE {dir}')
+        # print(f'DRIVE {dir}')
         if dir == 'UP':
             pspeed = 0
         elif dir == 'DOWN':
@@ -558,17 +578,18 @@ class ViscaDeck:
             return
         self._camDriveSpeed += 1
         self._camDriveSpeed %= 3
-        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, self._keyIndex(4, 2))
+        self._renderIcon(f'icoSpeed{self._camDriveSpeed}.png', None, None, key)
 
     def _camSelectPressed_callback(self, pressed: bool, key: int, cam: ptz.Camera):
         if not pressed:
             return
+        self._obs.setPreviewCamera(cam)
         self._selectedCam = cam
         if self._deckSize == 'REGULAR':
             self._drawDeck('CAMSELECT')
         elif self._deckSize == 'XL':
+            self._drivenCamera = cam
             self._drawDeck('HOME')
-        self._obs.setPreviewCamera(cam)
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):
         if not pressed:

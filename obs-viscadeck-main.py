@@ -196,6 +196,7 @@ def configureMain():
     callbacks.getFreeCameras = findInactiveCams
     callbacks.setPreviewCamera = previewScene
     deck = buttons.ViscaDeck(loadedConfig, callbacks)
+    deck.open()
 
     return True
 
@@ -334,11 +335,13 @@ def finishAdvancedTransition_callback(context: any):
 
 def callScene_callback(page: str):
     global otherScenes
+    global deck
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == otherScenes[page]:
             obs.obs_frontend_set_current_scene(scene)
+            deck.setSelectedCamera(findInactiveCams()[0])
 
 def streamOnOff_callback(start: bool) -> bool:
     if start is None:
