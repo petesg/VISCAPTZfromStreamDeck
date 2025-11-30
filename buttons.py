@@ -86,6 +86,7 @@ class ViscaDeck:
             return
         if self._deckSize == 'XL':
             self._camSelectPressed_callback(True, None, cam)
+            self._obs.callPreset(None, cam)
         else:
             self._selectedCam = cam
 
@@ -588,7 +589,7 @@ class ViscaDeck:
         if self._deckSize == 'REGULAR':
             self._drawDeck('CAMSELECT')
         elif self._deckSize == 'XL':
-            self._drivenCamera = cam
+            self._obs.callPreset(None, cam)
             self._drawDeck('HOME')
 
     def _goToPagePressed_callback(self, pressed: bool, key: int, page: str):

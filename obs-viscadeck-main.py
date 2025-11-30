@@ -222,8 +222,8 @@ def transitionScene(cam):
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == cam.sceneName:
-            deck.setSelectedCamera(getLiveCamera())
             obs.obs_frontend_set_current_scene(scene)
+            deck.setSelectedCamera(getLiveCamera())
 
 def previewScene(cam):
     scenes = obs.obs_frontend_get_scenes()
