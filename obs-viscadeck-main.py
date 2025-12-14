@@ -225,7 +225,8 @@ def transitionScene(cam):
         if name == cam.sceneName:
             oldLiveCam = getLiveCamera()
             obs.obs_frontend_set_current_scene(scene)
-            deck.setSelectedCamera(oldLiveCam)
+            deck.setSelectedCamera(oldLiveCam or cameras[0])
+            # TODO OBS will still override the previewed scene AFTER the transition fade completes which is annoying if the scene being transitioned away from is not a camera scene
 
 def previewScene(cam):
     print(f'PREVIEWING CAMERA {cam.name}')
@@ -345,8 +346,9 @@ def callScene_callback(page: str):
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == otherScenes[page]:
+            oldLiveCam = getLiveCamera()
             obs.obs_frontend_set_current_scene(scene)
-            deck.setSelectedCamera(findInactiveCams()[0])
+            deck.setSelectedCamera(oldLiveCam or cameras[0])
 
 def streamOnOff_callback(start: bool) -> bool:
     if start is None:
