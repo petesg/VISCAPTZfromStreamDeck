@@ -67,20 +67,23 @@ class ViscaDeck:
     
     def open(self):
         if self._deckSize == 'XL':
-            self._obs.callPreset(None, self._selectedCam)
+            self._obs.callPreset(None, self._selectedCam) # TODO may select live camera because at the time this is run currently, obs_frontend_get_current_scene returns none for some reason
+            self._drawDeck('HOME')
 
     def close(self):
         self._disconnectSurface()
 
-    def startAdvancedTransition(self, camera: ptz.Camera, position: object, finishedCallback: Callable, context: Any):
+    def startAdvancedTransition(self, camera: ptz.Camera, position: Any, finishedCallback: Callable, context: Any):
         if self._deckSize == 'REGULAR':
             self._drawDeck("DRIVE")
         self._advDriveContext = context
         self._drivenCamera = camera
         self._driveTarget = position
         self._driveFinishedCallback = finishedCallback
+        print(f'STARTED ADV. TRANSITION FOR CAMERA {camera.name} to POS. {position} W/ CONTEXT {context}')
     
     def setSelectedCamera(self, cam: ptz.Camera) -> None:
+        print(f'SELECTED CAM CHANGED BY OBS TO {cam.name}')
         if cam is None:
             # TODO handle this
             return
