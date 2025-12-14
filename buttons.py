@@ -363,21 +363,23 @@ class ViscaDeck:
         self._currentPage = page
 
     def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
-        t0 = time.time()
+        # t0 = time.time()
         # see if scaled icon is cached already
-        if iconFile in self._iconCache.keys():
+        if not iconFile:
+            image = PILHelper.create_image(self._deck, 'black')
+        elif iconFile in self._iconCache.keys():
             image = self._iconCache[iconFile].copy()
-            t1 = time.time()
+            # t1 = time.time()
         else:
             # resize icon file
-            if iconFile:
-                icon = Image.open(os.path.join(self._loadedConfig.AssetsPath, iconFile))
-            else:
-                icon = Image.new("RGB", (100,100), "black")
-            t1 = time.time()
+            # if iconFile:
+            icon = Image.open(os.path.join(self._loadedConfig.AssetsPath, iconFile))
+            # else:
+                # icon = Image.new("RGB", (100,100), "black")
+            # t1 = time.time()
             image = PILHelper.create_scaled_image(self._deck, icon)
-            self._iconCache[iconFile] = image
-        t2 = time.time()
+            self._iconCache[iconFile] = image.copy()
+        # t2 = time.time()
 
         # add border
         if borderColor:
@@ -385,19 +387,19 @@ class ViscaDeck:
             ovDraw = ImageDraw.Draw(border)
             ovDraw.rounded_rectangle((1, 1, image.width - 1, image.height - 1), 9, "#00000000", borderColor, 4)
             image = Image.alpha_composite(image.convert('RGBA'), border).convert('RGB')
-        t3 = time.time()
+        # t3 = time.time()
         
         draw = ImageDraw.Draw(image)
-        t4 = time.time()
+        # t4 = time.time()
 
         # add label
-        t5 = t6 = time.time()
+        # t5 = t6 = time.time()
         if label:
             # wrap text
             font = ImageFont.truetype(os.path.join(self._loadedConfig.AssetsPath, 'ariblk.ttf'), 12 if iconFile else 16)
             lines = label.split('\n')
             temp = ''
-            t5 = time.time()
+            # t5 = time.time()
             while draw.textlength(lines[-1], font) >= image.width:
                 splindex = lines[-1].rfind(' ')
                 if splindex < 0:
@@ -406,16 +408,16 @@ class ViscaDeck:
                 lines[-1] = lines[-1][:splindex]
                 if draw.textlength(lines[-1], font) < image.width:
                     lines.append(temp[1:])
-            t6 = time.time()
+            # t6 = time.time()
             # overlay text
             draw.multiline_text((image.width / 2, 6 if iconFile else 36), '\n'.join(lines), 'white', font, "ma" if iconFile else "mm")
-        t7 = time.time()
+        # t7 = time.time()
 
         self._deck.set_key_image(key, PILHelper.to_native_format(self._deck, image))
-        t8 = time.time()
+        # t8 = time.time()
 
-        iden = label or iconFile or '<blank>'
-        print(f'DRAW {iden.ljust(18)} PROFILING - total: {t8 - t0:.3f}, icon fetch: {t1 - t0:.3f}, scaling: {t2 - t1:.3f}, border: {t3 - t2:.3f}, conversion: {t4 - t3:.3f}, font load: {t5 - t4:.3f}, text splitting: {t6 - t5:.3f}, title draw: {t7 - t6:.3f}, deck draw: {t8 - t7:.3f}')
+        # iden = label or iconFile or '<blank>'
+        # print(f'DRAW {iden.ljust(18)} PROFILING - total: {t8 - t0:.3f}, icon fetch: {t1 - t0:.3f}, scaling: {t2 - t1:.3f}, border: {t3 - t2:.3f}, conversion: {t4 - t3:.3f}, font load: {t5 - t4:.3f}, text splitting: {t6 - t5:.3f}, title draw: {t7 - t6:.3f}, deck draw: {t8 - t7:.3f}')
     
     def _renderLargeText(self, text:str, col:int, row:int, cols:int, rows:int, fontHt:float, textColor:str='white', backColor:str='black', kerf:int=0):
         # clamp bounds to available area
