@@ -196,6 +196,7 @@ def configureMain():
     callbacks.getFreeCameras = findInactiveCams
     callbacks.setPreviewCamera = previewScene
     deck = buttons.ViscaDeck(loadedConfig, callbacks)
+    deck.open()
 
     return True
 
@@ -209,22 +210,26 @@ def getLiveCamera():
     # currentScene = obs.obs_scene_from_source(current_scene)
     for camera in cameras:
         # print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
-        print(f'checking {camera.name} with scene {camera.sceneName}')
+        # print(f'checking {camera.name} with scene {camera.sceneName}')
         if camera.sceneName == currentScene:
             print(f'camera {camera.name} is live')
             return camera
     return None # TODO maybe throw an exception???
 
 def transitionScene(cam):
+    print(f'STARTING SCENE TRANSITION TO CAMERA {cam.name}')
     global deck
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == cam.sceneName:
-            deck.setSelectedCamera(getLiveCamera())
+            oldLiveCam = getLiveCamera()
             obs.obs_frontend_set_current_scene(scene)
+            deck.setSelectedCamera(oldLiveCam or cameras[0])
+            # TODO OBS will still override the previewed scene AFTER the transition fade completes which is annoying if the scene being transitioned away from is not a camera scene
 
 def previewScene(cam):
+    print(f'PREVIEWING CAMERA {cam.name}')
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
@@ -268,7 +273,7 @@ def advModeChanged_callback(props, prop, settings):
 
 def findInactiveCams():
     cams = cameras.copy()
-    print(f'finding avalaible cameras... all cameras: {",".join([c.name for c in cams])}')
+    # print(f'finding avalaible cameras... all cameras: {",".join([c.name for c in cams])}')
     liveCam = getLiveCamera()
     if liveCam:
         cams.remove(liveCam)
@@ -276,7 +281,7 @@ def findInactiveCams():
 
 def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
     # TODO make sure preset exists
-    print(f'calling preset "{preset}" on camera {camera.name}')
+    print(f'CALLING PRESET "{preset}" ON CAMERA {camera.name}')
     if camera == getLiveCamera():
         # deck is somehow requesting the live camera be move
         # probably something has changed the active camera since we handed it out
@@ -297,6 +302,7 @@ def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
 
     previewScene(camera)
     if advancedMode:
+        print(f'STARTING ADV. TRANSITION FOR CAMERA {camera.name}')
         deck.startAdvancedTransition(camera, pos, finishAdvancedTransition_callback, cameras.index(camera))
     else:
         time.sleep(delayDur / 1000)
@@ -330,15 +336,19 @@ def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
     return False
 
 def finishAdvancedTransition_callback(context: any):
+    print(f'FINISHING ADV. TRANSITION FOR CAM #{context}')
     transitionScene(cameras[context])
 
 def callScene_callback(page: str):
     global otherScenes
+    global deck
     scenes = obs.obs_frontend_get_scenes()
     for scene in scenes:
         name = obs.obs_source_get_name(scene)
         if name == otherScenes[page]:
+            oldLiveCam = getLiveCamera()
             obs.obs_frontend_set_current_scene(scene)
+            deck.setSelectedCamera(oldLiveCam or cameras[0])
 
 def streamOnOff_callback(start: bool) -> bool:
     if start is None:
