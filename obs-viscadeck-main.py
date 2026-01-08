@@ -202,19 +202,19 @@ def configureMain():
 
 def getLiveCamera():
     # print('getting live cam')
-    print(f'fetching live camera...')
+    # print(f'fetching live camera...')
     current_scene = obs.obs_frontend_get_current_scene()
     currentScene = obs.obs_source_get_name(current_scene)
-    print(f'currentScene is {currentScene}')
+    # print(f'currentScene is {currentScene}')
     # print(f'"{currentScene}" is live')
     # currentScene = obs.obs_scene_from_source(current_scene)
     for camera in cameras:
         # print(f'comparing against camera "{camera.name}" on scene "{camera.sceneName}"')
         # print(f'checking {camera.name} with scene {camera.sceneName}')
         if camera.sceneName == currentScene:
-            print(f'camera {camera.name} is live')
+            # print(f'camera {camera.name} is live')
             return camera
-    return None # TODO maybe throw an exception???
+    return None
 
 def transitionScene(cam):
     print(f'STARTING SCENE TRANSITION TO CAMERA {cam.name}')
@@ -281,7 +281,7 @@ def findInactiveCams():
 
 def callPreset_callback(preset: str, camera: ptz.Camera) -> None:
     # TODO make sure preset exists
-    print(f'CALLING PRESET "{preset}" ON CAMERA {camera.name}')
+    # print(f'CALLING PRESET "{preset}" ON CAMERA {camera.name}')
     if camera == getLiveCamera():
         # deck is somehow requesting the live camera be move
         # probably something has changed the active camera since we handed it out

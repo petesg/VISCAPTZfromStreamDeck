@@ -47,9 +47,9 @@ class ViscaDeck:
     _advDriveContext: Any
     _driveFinishedCallback: Callable
     _valueSelected: int = 0
-    _availableValues: list[tuple[str, str]] = [
-        ('icoAperture_b.png', 'APERTURE'),
-        ('icoShutter_b.png', 'SHUTTER')
+    _availableValues: list[tuple[str, str, float]] = [
+        ['icoAperture_b.png', 'APERTURE', 0],
+        ['icoShutter_b.png', 'SHUTTER', 0]
     ]
     _iconCache: dict[str, Image.Image] = {}
     
@@ -82,10 +82,10 @@ class ViscaDeck:
         self._drivenCamera = camera
         self._driveTarget = position
         self._driveFinishedCallback = finishedCallback
-        print(f'STARTED ADV. TRANSITION FOR CAMERA {camera.name} to POS. {position} W/ CONTEXT {context}')
+        # print(f'STARTED ADV. TRANSITION FOR CAMERA {camera.name} to POS. {position} W/ CONTEXT {context}')
     
     def setSelectedCamera(self, cam: ptz.Camera) -> None:
-        print(f'SELECTED CAM CHANGED BY OBS TO {cam.name}')
+        # print(f'SELECTED CAM CHANGED BY OBS TO {cam.name}')
         if cam is None:
             # TODO handle this
             return
@@ -250,7 +250,7 @@ class ViscaDeck:
                 i = self._keyIndex(col + j, row + 3)
             else:
                 i = self._keyIndex(col + 3, row + j)
-            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i, '#4AA1FF7F', self._availableValues[j][2]) # or 4AA1FF instead of white
             self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
         # reset key
         i = self._keyIndex(col + 1, row + 1)
@@ -362,7 +362,7 @@ class ViscaDeck:
             self._lastPage = self._currentPage
         self._currentPage = page
 
-    def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int) -> None:
+    def _renderIcon(self, iconFile: str, label: str, borderColor: str, key: int, fillColor: str | None = None, fillPct: float = 1) -> None:
         # t0 = time.time()
         # see if scaled icon is cached already
         if not iconFile:
@@ -380,6 +380,14 @@ class ViscaDeck:
             image = PILHelper.create_scaled_image(self._deck, icon)
             self._iconCache[iconFile] = image.copy()
         # t2 = time.time()
+
+        # add value-indicating fill
+        if fillColor is not None:
+            overlay = Image.new('RGBA', image.size, '#00000000')
+            ovDraw = ImageDraw.Draw(overlay)
+            print(f'drawing {fillPct*100:.1f}% fill from (0, {(1 - fillPct) * image.height}) to ({image.width}, {image.height})')
+            ovDraw.rectangle((0, (1 - fillPct) * image.height, image.width, image.height), fillColor, None)
+            image = Image.alpha_composite(image.convert('RGBA'), overlay).convert('RGB')
 
         # add border
         if borderColor:
@@ -526,7 +534,7 @@ class ViscaDeck:
                 i = self._keyIndex(3, j)
             elif self._deckSize == 'XL':
                 i = self._keyIndex(j, 3)
-            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i) # or 4AA1FF instead of white
+            self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i, '#4AA1FF7F', self._availableValues[j][2])
 
     def _moveCameraArrowPressed_callback(self, pressed: bool, key: int, dir: str):
         pspeed = [0x01, 0x0A, 0x18][self._camDriveSpeed]
@@ -578,15 +586,20 @@ class ViscaDeck:
         if self._availableValues[self._valueSelected][1] == "BRIGHTNESS":
             # TODO
             # print(('increasing' if up else 'decreasing') + ' brightness')
-            self._drivenCamera.driveBrightness(up)
+            value = self._drivenCamera.driveBrightness(up)
         elif self._availableValues[self._valueSelected][1] == "SHUTTER":
             # TODO
             # print(('increasing' if up else 'decreasing') + ' shutter speed')
-            self._drivenCamera.driveShutter(up)
+            value = self._drivenCamera.driveShutter(up)
         elif self._availableValues[self._valueSelected][1] == "APERTURE":
             # TODO
             # print(('increasing' if up else 'decreasing') + ' aperture')
-            self._drivenCamera.driveAperture(up)
+            value = self._drivenCamera.driveAperture(up)
+        self._availableValues[self._valueSelected][2] = value
+        if self._deckSize == 'XL':
+            self._drawDeck('HOME')
+        else:
+            self._drawDeck('DRIVE')
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed and self._driveTarget:

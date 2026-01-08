@@ -140,8 +140,8 @@ class Camera:
             return False
         return True
 
-    def driveShutter(self, up: bool):
-        print('SHUTTER ' + ('UP' if up else 'DOWN'))
+    def driveShutter(self, up: bool) -> float:
+        # print('SHUTTER ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
         # driveStr = f'8{self._channel:01X}01040A0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -168,10 +168,11 @@ class Camera:
         newShutter = self._shutter + (1 if up else -1)
         if newShutter >= SHUTTER_MIN and newShutter <= SHUTTER_MAX:
             self.setShutter(newShutter)
-        return True
+            return (newShutter - SHUTTER_MIN) / (SHUTTER_MAX - SHUTTER_MIN)
+        return (self._shutter - SHUTTER_MIN) / (SHUTTER_MAX - SHUTTER_MIN)
     
     def driveAperture(self, up: bool):
-        print('APERTURE ' + ('UP' if up else 'DOWN'))
+        # print('APERTURE ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}01043903FF'
         # driveStr = f'8{self._channel:01X}01040B0{"2" if up else "3"}FF'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -196,15 +197,16 @@ class Camera:
         self._updateAperture()
         newAperture = self._aperture + (1 if up else -1)
         if newAperture >= APERTURE_MIN and newAperture <= APERTURE_MAX:
-            ts = curMillis()
+            # ts = curMillis()
             # do a stupid pause?
             # while curMillis() < ts + 5:
             #     pass
             self.setAperture(newAperture)
-        return True
+            return (newAperture - APERTURE_MIN) / (APERTURE_MAX - APERTURE_MIN)
+        return (self._aperture - APERTURE_MIN) / (APERTURE_MAX - APERTURE_MIN)
     
     def driveBrightness(self, up: bool):
-        return False
+        return 0
         print('BRIGHTNESS ' + ('UP' if up else 'DOWN'))
         modeStr = f'8{self._channel:01X}0104390DFF'
         driveStr = f'8{self._channel:01X}01040D0{"2" if up else "3"}FF'
@@ -351,7 +353,7 @@ class Camera:
         return ack
 
     def _checkIfAwaited(self, packet):
-        print(f'checking if "{packet}" is awaited')
+        # print(f'checking if "{packet}" is awaited')
         for i in range(len(self._awaiting)):
             if self._awaiting[i][0].match(packet.hex()):
                 if self._awaiting[i][1] is not None:
