@@ -244,12 +244,19 @@ class ViscaDeck:
         i = self._keyIndex(col + 2, row + 2)
         self._renderIcon('icoValueDown_b.png', None, None, i)
         self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
+        # autofocus key
+        if square:
+            i = self._keyIndex(col + 1, row + 3)
+        else:
+            i = self._keyIndex(col + 3, row + 1)
+        self._renderIcon('icoAutofocus_b.png', None, None, i)
+        self._keyHandlers[i] = (self._moveCameraAutofocusPressed_callback, None)
         # value select keys
-        for j in range(min(4, len(self._availableValues))):
+        for j in range(min(2 if square else 3, len(self._availableValues))):
             if square:
-                i = self._keyIndex(col + j, row + 3)
+                i = self._keyIndex(col + j + 1, row + 3)
             else:
-                i = self._keyIndex(col + 3, row + j)
+                i = self._keyIndex(col + 3, row + j + 1)
             self._renderIcon(self._availableValues[j][0], None, '#4AA1FF' if self._valueSelected == j else None, i, '#4AA1FF7F', self._availableValues[j][2]) # or 4AA1FF instead of white
             self._keyHandlers[i] = (self._moveCameraSelectValuePressed_callback, j)
         # reset key
@@ -597,6 +604,15 @@ class ViscaDeck:
             value = self._drivenCamera.driveAperture(up)
         self._availableValues[self._valueSelected][2] = value
         self._drawDriveButtons(0, 0)
+    
+    def _moveCameraAutofocusPressed_callback(self, pressed: bool, key: int, context: None):
+        if pressed:
+            self._drivenCamera.lockFocus(False)
+            # self._drivenCamera.refocus()
+            self._renderIcon('icoAutofocus_b.png', None, "#4AA1FF", key)
+        else:
+            self._drivenCamera.lockFocus(True)
+            self._renderIcon('icoAutofocus_b.png', None, None, key)
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed and self._driveTarget:

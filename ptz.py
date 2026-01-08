@@ -224,6 +224,27 @@ class Camera:
         if not self._clearAwaiting(sock, 2000):
             return False
         return True
+    
+    def lockFocus(self, locked: bool):
+        flag = 2 if locked else 3
+        driveStr = f'8{self._channel:01X}0A04680{flag:01X}FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
+            return False
+        return True
+    
+    def refocus(self):
+        # set focus to something ridiculous to force re-autofocus
+        focusStr = f'8{self._channel:01X}01044800000000FF'
+        afStr = f'8{self._channel:01X}01043802FF'
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((self._ip, self._port))
+        if not self._sendAndAck(sock, bytes.fromhex(focusStr), 3, 2000):
+            return False
+        if not self._sendAndAck(sock, bytes.fromhex(afStr), 3, 2000):
+            return False
+        return True
 
     def _updatePosition(self):
         #print('inquiring pos')
