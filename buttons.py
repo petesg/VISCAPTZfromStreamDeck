@@ -246,9 +246,9 @@ class ViscaDeck:
         self._keyHandlers[i] = (self._moveCameraValueUpDownPressed_callback, False)
         # autofocus key
         if square:
-            i = self._keyIndex(col + 1, row + 3)
+            i = self._keyIndex(col, row + 3)
         else:
-            i = self._keyIndex(col + 3, row + 1)
+            i = self._keyIndex(col + 3, row)
         self._renderIcon('icoAutofocus_b.png', None, None, i)
         self._keyHandlers[i] = (self._moveCameraAutofocusPressed_callback, None)
         # value select keys
@@ -567,7 +567,9 @@ class ViscaDeck:
             tspeed = 0
         else:
             raise ValueError(f'Invalid pan/tilt direction: "{dir}"')
+        self._drivenCamera.lockFocus(False)
         self._drivenCamera.drivePanTilt(pspeed, tspeed)
+        self._drivenCamera.lockFocus(True)
         self._driveActive = True
 
     def _moveCameraZoomPressed_callback(self, pressed: bool, key: int, dir: str):
@@ -584,7 +586,9 @@ class ViscaDeck:
             speed *= -1
         else:
             raise ValueError(f'Invalid zoom direction: "{dir}"')
+        self._drivenCamera.lockFocus(False)
         self._drivenCamera.driveZoom(speed)
+        self._drivenCamera.lockFocus(True)
         self._driveActive = True
 
     def _moveCameraValueUpDownPressed_callback(self, pressed: bool, key: int, up: bool):
@@ -608,7 +612,7 @@ class ViscaDeck:
     def _moveCameraAutofocusPressed_callback(self, pressed: bool, key: int, context: None):
         if pressed:
             self._drivenCamera.lockFocus(False)
-            # self._drivenCamera.refocus()
+            self._drivenCamera.refocus()
             self._renderIcon('icoAutofocus_b.png', None, "#4AA1FF", key)
         else:
             self._drivenCamera.lockFocus(True)

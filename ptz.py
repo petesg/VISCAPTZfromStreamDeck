@@ -232,6 +232,10 @@ class Camera:
         sock.connect((self._ip, self._port))
         if not self._sendAndAck(sock, bytes.fromhex(driveStr), 3, 2000):
             return False
+        if not locked:
+            afStr = f'8{self._channel:01X}01043802FF'
+            if not self._sendAndAck(sock, bytes.fromhex(afStr), 3, 2000):
+                return False
         return True
     
     def refocus(self):
