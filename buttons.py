@@ -596,10 +596,7 @@ class ViscaDeck:
             # print(('increasing' if up else 'decreasing') + ' aperture')
             value = self._drivenCamera.driveAperture(up)
         self._availableValues[self._valueSelected][2] = value
-        if self._deckSize == 'XL':
-            self._drawDeck('HOME')
-        else:
-            self._drawDeck('DRIVE')
+        self._drawDriveButtons(0, 0)
 
     def _moveCameraResetPressed_callback(self, pressed: bool, key: int, context: Any):
         if pressed and self._driveTarget:
